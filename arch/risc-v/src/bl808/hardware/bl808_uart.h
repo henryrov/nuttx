@@ -34,7 +34,10 @@
 
 /* Only UART3 is supported */
 
-#define BL808_UART_BASE(n) (UNUSED(n), BL808_UART3_BASE)
+#define BL808_UART_BASE(n) ((n == 0) ? BL808_UART0_BASE \
+			    : (n == 1) ? BL808_UART1_BASE \
+			    : (n == 2) ? BL808_UART2_BASE \
+			    : BL808_UART3_BASE)
 
 /* Register offsets *********************************************************/
 

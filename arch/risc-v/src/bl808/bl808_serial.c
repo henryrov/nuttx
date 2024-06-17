@@ -758,6 +758,17 @@ void bl808_serialinit(void)
       devname[9] = '0' + i;
       uart_register(devname, g_uart_devs[i]);
     }
+
+  while (1) {
+    uint8_t uart_idx = 3;
+
+    /* Wait for FIFO to be empty */
+
+    while ((getreg32(BL808_UART_FIFO_CONFIG_1(uart_idx)) &
+	    UART_FIFO_CONFIG_1_TX_CNT_MASK) == 0);
+    
+    putreg32('z', BL808_UART_FIFO_WDATA(uart_idx));
+  }
 }
 
 /****************************************************************************
