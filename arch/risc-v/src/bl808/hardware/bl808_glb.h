@@ -34,14 +34,25 @@
 
 /* Register offsets *********************************************************/
 
+#define BL808_GLB_UART_CFG1_OFFSET    0x154
+#define BL808_GLB_UART_CFG2_OFFSET    0x158
+
 #define BL808_GPIO_CFG_OFFSET              0x0008c4  /* gpio_cfg0 */
 
 /* Register definitions *****************************************************/
+
+#define BL808_GLB_UART_CFG1 (BL808_GLB_BASE + BL808_GLB_UART_CFG1_OFFSET)
+#define BL808_GLB_UART_CFG2 (BL808_GLB_BASE + BL808_GLB_UART_CFG2_OFFSET)
 
 #define BL808_GPIO_CFG(n)        (BL808_GLB_BASE + BL808_GPIO_CFG_OFFSET + 4*n)
 
 /* Register bit definitions *************************************************/
 
+/* UART_CFG registers *******************************************************/
+#define UART_CFG_SIG_SEL_SHIFT(n)  ((n % 8) * 4)
+#define UART_CFG_SIG_SEL_MASK(n)   (0x0f << UART_CFG_SIG_SEL_SHIFT(n))
+
+/* GPIO_CFG registers *******************************************************/
 // bit definitions from lupyuen's wip-nuttx, branch gpio2
 
 //// Check every bit
