@@ -719,6 +719,38 @@ void bl808_earlyserialinit(void)
   bl808_setup(&CONSOLE_DEV);
 }
 
+void print_reg(uint64_t addr) {
+  char buf[] = {'0', '0', '0', '0', '0', '\r', '\n'};
+  uint32_t val = getreg32(addr);
+  uint32_t tmp = val;
+  int buf_i = 4;
+  while (buf_i >= 0) {
+    buf[buf_i] += (tmp % 10);
+    tmp = tmp / 10;
+    buf_i--;
+  }
+
+  for (buf_i = 0; buf_i < 7; buf_i++) {
+    uint8_t uart_idx = 3;
+
+    while ((getreg32(BL808_UART_FIFO_CONFIG_1(uart_idx)) &
+	    UART_FIFO_CONFIG_1_TX_CNT_MASK) == 0);
+    
+    putreg32(buf[buf_i], BL808_UART_FIFO_WDATA(uart_idx));
+  }
+}
+
+void dump_cfg(uint8_t idx) {
+  print_reg(BL808_UART_UTX_CONFIG(idx));
+  print_reg(BL808_UART_URX_CONFIG(idx));
+  print_reg(BL808_UART_BIT_PRD(idx));
+  print_reg(BL808_UART_DATA_CONFIG(idx));
+  print_reg(BL808_UART_URX_RTO_TIMER(idx));
+  print_reg(BL808_UART_INT_EN(idx));
+  print_reg(BL808_UART_FIFO_CONFIG_0(idx));
+  print_reg(BL808_UART_FIFO_CONFIG_1(idx));
+}
+
 /****************************************************************************
  * Name: bl808_serialinit
  *
@@ -760,27 +792,43 @@ void bl808_serialinit(void)
       uart_register(devname, g_uart_devs[i]);
     }
 
-  uint32_t tmp_val = getreg32(BL808_GLB_UART_CFG1);
+  uint32_t tmp_val = getreg32(BL808_UART_UTX_CONFIG(1));
+  tmp_val |= UART_UTX_CONFIG_CR_FRM_EN;
+  tmp_val |= UART_UTX_CONFIG_CR_EN;
+  putreg32(tmp_val, BL808_UART_UTX_CONFIG(1));
+
+  tmp_val = getreg32(BL808_UART_URX_CONFIG(1));
+  tmp_val |= UART_URX_CONFIG_CR_EN;
+  putreg32(tmp_val, BL808_UART_URX_CONFIG(1));
+
+  tmp_val = getreg32(BL808_UART_BIT_PRD(1));
+  tmp_val = 19 | (19 << 16);
+  putreg32(tmp_val, BL808_UART_BIT_PRD(1));
+
+  tmp_val = getreg32(BL808_UART_FIFO_CONFIG_1(1));
+  tmp_val |= 1 << UART_FIFO_CONFIG_1_TX_TH_SHIFT;
+  putreg32(tmp_val, BL808_UART_FIFO_CONFIG_1(1));
+  
+  tmp_val = getreg32(BL808_GLB_UART_CFG1);
   tmp_val = tmp_val & !UART_CFG_SIG_SEL_MASK(4);
-  tmp_val = 2 << UART_CFG_SIG_SEL_SHIFT(4);
+  tmp_val |= 6 << UART_CFG_SIG_SEL_SHIFT(4);
   putreg32(tmp_val, BL808_GLB_UART_CFG1);
 
   tmp_val = getreg32(BL808_GPIO_CFG(28));
   tmp_val = tmp_val & !GPIO_CFGCTL0_GPIO_0_FUNC_SEL_MASK;
-  tmp_val = 7 << GPIO_CFGCTL0_GPIO_0_FUNC_SEL_SHIFT;
+  tmp_val |= 7 << GPIO_CFGCTL0_GPIO_0_FUNC_SEL_SHIFT;
   putreg32(tmp_val, BL808_GPIO_CFG(28));
 
-  
+  dump_cfg(1);
+  dump_cfg(3);
 
-  while (1) {
-    uint8_t uart_idx = 0;
-
-    /* Wait for FIFO to be empty */
+  for (;;) {
+    uint8_t uart_idx = 1;
 
     while ((getreg32(BL808_UART_FIFO_CONFIG_1(uart_idx)) &
 	    UART_FIFO_CONFIG_1_TX_CNT_MASK) == 0);
     
-    putreg32('z', BL808_UART_FIFO_WDATA(uart_idx));
+    putreg32('s', BL808_UART_FIFO_WDATA(uart_idx));
   }
 }
 
