@@ -39,6 +39,7 @@
 #include <nuttx/serial/tioctl.h>
 
 #include "hardware/bl808_uart.h"
+#include "hardware/bl808_glb.h"
 #include "riscv_internal.h"
 #include "chip.h"
 #include "bl808_serial.h"
@@ -758,6 +759,12 @@ void bl808_serialinit(void)
       devname[9] = '0' + i;
       uart_register(devname, g_uart_devs[i]);
     }
+
+  uint32_t tmp_val = getreg32(BL808_GPIO_CFG(28));
+  tmp_val = tmp_val & !GPIO_CFGCTL0_GPIO_0_FUNC_SEL_MASK;
+  tmp_val = 21 << GPIO_CFGCTL0_GPIO_0_FUNC_SEL_SHIFT;
+  putreg32(tmp_val, BL808_GPIO_CFG(28));
+  
 
   while (1) {
     uint8_t uart_idx = 3;
