@@ -25,7 +25,6 @@ config BL808_UART2
 	select UART2_SERIALDRIVER
 	select ARCH_HAVE_SERIAL_TERMIOS
 
-
 config BL808_UART3
 	bool "UART 3"
 	default n

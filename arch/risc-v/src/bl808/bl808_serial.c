@@ -115,14 +115,14 @@ static const struct uart_ops_s g_uart_ops =
 
 /* I/O buffers */
 
-static char g_uart0rxbuffer[CONFIG_UART3_RXBUFSIZE];
-static char g_uart0txbuffer[CONFIG_UART3_TXBUFSIZE];
+static char g_uart0rxbuffer[CONFIG_UART0_RXBUFSIZE];
+static char g_uart0txbuffer[CONFIG_UART0_TXBUFSIZE];
 
-static char g_uart1rxbuffer[CONFIG_UART3_RXBUFSIZE];
-static char g_uart1txbuffer[CONFIG_UART3_TXBUFSIZE];
+static char g_uart1rxbuffer[CONFIG_UART1_RXBUFSIZE];
+static char g_uart1txbuffer[CONFIG_UART1_TXBUFSIZE];
 
-static char g_uart2rxbuffer[CONFIG_UART3_RXBUFSIZE];
-static char g_uart2txbuffer[CONFIG_UART3_TXBUFSIZE];
+static char g_uart2rxbuffer[CONFIG_UART2_RXBUFSIZE];
+static char g_uart2txbuffer[CONFIG_UART2_TXBUFSIZE];
 
 static char g_uart3rxbuffer[CONFIG_UART3_RXBUFSIZE];
 static char g_uart3txbuffer[CONFIG_UART3_TXBUFSIZE];
@@ -372,38 +372,6 @@ static int __uart_interrupt(int irq, void *context, void *arg)
  *
  ****************************************************************************/
 
-void print_reg(uint64_t addr) {
-  char buf[] = {'0', '0', '0', '0', '0', '\r', '\n'};
-  uint32_t val = getreg32(addr);
-  uint32_t tmp = val;
-  int buf_i = 4;
-  while (buf_i >= 0) {
-    buf[buf_i] += (tmp % 10);
-    tmp = tmp / 10;
-    buf_i--;
-  }
-
-  for (buf_i = 0; buf_i < 7; buf_i++) {
-    uint8_t uart_idx = 3;
-
-    while ((getreg32(BL808_UART_FIFO_CONFIG_1(uart_idx)) &
-	    UART_FIFO_CONFIG_1_TX_CNT_MASK) == 0);
-    
-    putreg32(buf[buf_i], BL808_UART_FIFO_WDATA(uart_idx));
-  }
-}
-
-void dump_cfg(uint8_t idx) {
-  print_reg(BL808_UART_UTX_CONFIG(idx));
-  print_reg(BL808_UART_URX_CONFIG(idx));
-  print_reg(BL808_UART_BIT_PRD(idx));
-  print_reg(BL808_UART_DATA_CONFIG(idx));
-  print_reg(BL808_UART_URX_RTO_TIMER(idx));
-  print_reg(BL808_UART_INT_EN(idx));
-  print_reg(BL808_UART_FIFO_CONFIG_0(idx));
-  print_reg(BL808_UART_FIFO_CONFIG_1(idx));
-}
-
 static void bl808_uart_configure(const struct uart_config_s *config)
 {
   uint8_t uart_idx = config->idx;
@@ -465,8 +433,6 @@ static void bl808_uart_configure(const struct uart_config_s *config)
   tmp_val = getreg32(BL808_UART_FIFO_CONFIG_1(uart_idx));
   tmp_val |= 1 << UART_FIFO_CONFIG_1_TX_TH_SHIFT;
   putreg32(tmp_val, BL808_UART_FIFO_CONFIG_1(uart_idx));
-
-  dump_cfg(uart_idx);
 }
 
 /****************************************************************************
@@ -991,7 +957,8 @@ void bl808_serialinit(void)
       devname[9] = '0' + i;
       uart_register(devname, g_uart_devs[i]);
     }
-  
+
+  /*
   uint32_t tmp_val = getreg32(BL808_GLB_UART_CFG1);
   tmp_val = tmp_val & !UART_CFG_SIG_SEL_MASK(4);
   tmp_val |= 6 << UART_CFG_SIG_SEL_SHIFT(4);
@@ -1001,9 +968,7 @@ void bl808_serialinit(void)
   tmp_val = tmp_val & !GPIO_CFGCTL0_GPIO_0_FUNC_SEL_MASK;
   tmp_val |= 7 << GPIO_CFGCTL0_GPIO_0_FUNC_SEL_SHIFT;
   putreg32(tmp_val, BL808_GPIO_CFG(28));
-
-  dump_cfg(1);
-  dump_cfg(3);
+  */
 
   /*
   for (;;) {
@@ -1027,7 +992,8 @@ void bl808_serialinit(void)
 
 int up_putc(int ch)
 {
-  struct uart_dev_s *priv = CONSOLE_DEV.priv;
+  struct bl808_uart_s *priv = CONSOLE_DEV.priv;
+  uint8_t uart_idx = priv->config.idx;
   irqstate_t flags = enter_critical_section();
 
   /* Check for LF */
@@ -1036,10 +1002,17 @@ int up_putc(int ch)
     {
       /* Add CR */
 
-      bl808_send(priv, '\r');
+      while ((getreg32(BL808_UART_FIFO_CONFIG_1(uart_idx)) &
+	    UART_FIFO_CONFIG_1_TX_CNT_MASK) == 0);
+    
+      putreg32('\r', BL808_UART_FIFO_WDATA(uart_idx));
     }
 
-  bl808_send(priv, ch);
+  while ((getreg32(BL808_UART_FIFO_CONFIG_1(uart_idx)) &
+	    UART_FIFO_CONFIG_1_TX_CNT_MASK) == 0);
+    
+  putreg32(ch, BL808_UART_FIFO_WDATA(uart_idx));
+  
   leave_critical_section(flags);
   return ch;
 }
