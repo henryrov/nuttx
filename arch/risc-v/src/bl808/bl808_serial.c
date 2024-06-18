@@ -135,19 +135,19 @@ static struct bl808_uart_s g_uart0priv =
   .config =
     {
       .idx       = 0,
-      .baud      = CONFIG_UART3_BAUD,
-      .parity    = CONFIG_UART3_PARITY,
-      .data_bits = CONFIG_UART3_BITS,
-      .stop_bits = CONFIG_UART3_2STOP,
+      .baud      = CONFIG_UART0_BAUD,
+      .parity    = CONFIG_UART0_PARITY,
+      .data_bits = CONFIG_UART0_BITS,
+      .stop_bits = CONFIG_UART0_2STOP,
 
-#ifdef CONFIG_UART3_IFLOWCONTROL
-      .iflow_ctl = CONFIG_UART3_IFLOWCONTROL,
+#ifdef CONFIG_UART0_IFLOWCONTROL
+      .iflow_ctl = CONFIG_UART0_IFLOWCONTROL,
 #else
       .iflow_ctl = 0,
 #endif
 
-#ifdef CONFIG_UART3_OFLOWCONTROL
-      .oflow_ctl = CONFIG_UART3_OFLOWCONTROL,
+#ifdef CONFIG_UART0_OFLOWCONTROL
+      .oflow_ctl = CONFIG_UART0_OFLOWCONTROL,
 #else
       .oflow_ctl = 0,
 #endif
@@ -159,12 +159,12 @@ static uart_dev_t g_uart0port =
   .isconsole = 0,
   .recv =
     {
-      .size   = CONFIG_UART3_RXBUFSIZE,
+      .size   = CONFIG_UART0_RXBUFSIZE,
       .buffer = g_uart0rxbuffer,
     },
   .xmit =
     {
-      .size   = CONFIG_UART3_TXBUFSIZE,
+      .size   = CONFIG_UART0_TXBUFSIZE,
       .buffer = g_uart0txbuffer,
     },
   .ops  = &g_uart_ops,
@@ -177,19 +177,19 @@ static struct bl808_uart_s g_uart1priv =
   .config =
     {
       .idx       = 1,
-      .baud      = CONFIG_UART3_BAUD,
-      .parity    = CONFIG_UART3_PARITY,
-      .data_bits = CONFIG_UART3_BITS,
-      .stop_bits = CONFIG_UART3_2STOP,
+      .baud      = CONFIG_UART1_BAUD,
+      .parity    = CONFIG_UART1_PARITY,
+      .data_bits = CONFIG_UART1_BITS,
+      .stop_bits = CONFIG_UART1_2STOP,
 
-#ifdef CONFIG_UART3_IFLOWCONTROL
-      .iflow_ctl = CONFIG_UART3_IFLOWCONTROL,
+#ifdef CONFIG_UART1_IFLOWCONTROL
+      .iflow_ctl = CONFIG_UART1_IFLOWCONTROL,
 #else
       .iflow_ctl = 0,
 #endif
 
-#ifdef CONFIG_UART3_OFLOWCONTROL
-      .oflow_ctl = CONFIG_UART3_OFLOWCONTROL,
+#ifdef CONFIG_UART1_OFLOWCONTROL
+      .oflow_ctl = CONFIG_UART1_OFLOWCONTROL,
 #else
       .oflow_ctl = 0,
 #endif
@@ -201,12 +201,12 @@ static uart_dev_t g_uart1port =
   .isconsole = 0,
   .recv =
     {
-      .size   = CONFIG_UART3_RXBUFSIZE,
+      .size   = CONFIG_UART1_RXBUFSIZE,
       .buffer = g_uart1rxbuffer,
     },
   .xmit =
     {
-      .size   = CONFIG_UART3_TXBUFSIZE,
+      .size   = CONFIG_UART1_TXBUFSIZE,
       .buffer = g_uart1txbuffer,
     },
   .ops  = &g_uart_ops,
@@ -219,19 +219,19 @@ static struct bl808_uart_s g_uart2priv =
   .config =
     {
       .idx       = 2,
-      .baud      = CONFIG_UART3_BAUD,
-      .parity    = CONFIG_UART3_PARITY,
-      .data_bits = CONFIG_UART3_BITS,
-      .stop_bits = CONFIG_UART3_2STOP,
+      .baud      = CONFIG_UART2_BAUD,
+      .parity    = CONFIG_UART2_PARITY,
+      .data_bits = CONFIG_UART2_BITS,
+      .stop_bits = CONFIG_UART2_2STOP,
 
-#ifdef CONFIG_UART3_IFLOWCONTROL
-      .iflow_ctl = CONFIG_UART3_IFLOWCONTROL,
+#ifdef CONFIG_UART2_IFLOWCONTROL
+      .iflow_ctl = CONFIG_UART2_IFLOWCONTROL,
 #else
       .iflow_ctl = 0,
 #endif
 
-#ifdef CONFIG_UART3_OFLOWCONTROL
-      .oflow_ctl = CONFIG_UART3_OFLOWCONTROL,
+#ifdef CONFIG_UART2_OFLOWCONTROL
+      .oflow_ctl = CONFIG_UART2_OFLOWCONTROL,
 #else
       .oflow_ctl = 0,
 #endif
@@ -243,12 +243,12 @@ static uart_dev_t g_uart2port =
   .isconsole = 0,
   .recv =
     {
-      .size   = CONFIG_UART3_RXBUFSIZE,
+      .size   = CONFIG_UART2_RXBUFSIZE,
       .buffer = g_uart2rxbuffer,
     },
   .xmit =
     {
-      .size   = CONFIG_UART3_TXBUFSIZE,
+      .size   = CONFIG_UART2_TXBUFSIZE,
       .buffer = g_uart2txbuffer,
     },
   .ops  = &g_uart_ops,
@@ -407,20 +407,61 @@ void dump_cfg(uint8_t idx) {
 static void bl808_uart_configure(const struct uart_config_s *config)
 {
   uint8_t uart_idx = config->idx;
-  
+
+  /* UTX_CONFIG */
   uint32_t tmp_val = getreg32(BL808_UART_UTX_CONFIG(uart_idx));
+
+  tmp_val &= ~UART_UTX_CONFIG_CR_BIT_CNT_P_MASK;
+  if (config->stop_bits) {
+    tmp_val |= 3 << UART_UTX_CONFIG_CR_BIT_CNT_P_SHIFT;
+  } else {
+    tmp_val |= 1 << UART_UTX_CONFIG_CR_BIT_CNT_P_SHIFT;
+  }
+
+  tmp_val &= ~UART_UTX_CONFIG_CR_BIT_CNT_D_MASK;
+  tmp_val |= config->data_bits << UART_UTX_CONFIG_CR_BIT_CNT_D_SHIFT;
+
+  switch (config->parity) {
+  case 0:
+    tmp_val &= ~UART_UTX_CONFIG_CR_PRT_EN;
+    break;
+
+  case 1:
+    tmp_val |= UART_UTX_CONFIG_CR_PRT_EN;
+    tmp_val |= UART_UTX_CONFIG_CR_PRT_SEL;
+    break;
+
+  case 2:
+    tmp_val |= UART_UTX_CONFIG_CR_PRT_EN;
+    tmp_val &= ~UART_UTX_CONFIG_CR_PRT_SEL;
+    break;
+  }
+  
   tmp_val |= UART_UTX_CONFIG_CR_FRM_EN;
+
+  
+  if (config->oflow_ctl) {
+    tmp_val |= UART_UTX_CONFIG_CR_CTS_EN;
+  } else {
+    tmp_val &= ~UART_UTX_CONFIG_CR_CTS_EN;
+  }
+  
+  
   tmp_val |= UART_UTX_CONFIG_CR_EN;
   putreg32(tmp_val, BL808_UART_UTX_CONFIG(uart_idx));
 
+  /* URX CONFIG */
   tmp_val = getreg32(BL808_UART_URX_CONFIG(uart_idx));
   tmp_val |= UART_URX_CONFIG_CR_EN;
   putreg32(tmp_val, BL808_UART_URX_CONFIG(uart_idx));
 
+  /* BIT PRD (baud rate) */
+  uint16_t div = BL808_UART_CLK/config->baud - 1;
   tmp_val = getreg32(BL808_UART_BIT_PRD(uart_idx));
-  tmp_val = 19 | (19 << 16);
+  tmp_val = div | (div << 16);
   putreg32(tmp_val, BL808_UART_BIT_PRD(uart_idx));
 
+  /* FIFO CONFIG 1 */
   tmp_val = getreg32(BL808_UART_FIFO_CONFIG_1(uart_idx));
   tmp_val |= 1 << UART_FIFO_CONFIG_1_TX_TH_SHIFT;
   putreg32(tmp_val, BL808_UART_FIFO_CONFIG_1(uart_idx));
