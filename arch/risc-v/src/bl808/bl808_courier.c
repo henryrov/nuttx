@@ -55,7 +55,7 @@
 static int __courier_interrupt(int irq, void *context, void *arg)
 {
   uint32_t msg = getreg32(IPC2_MSG_READ);
-  int m0_extirq = msg & BL808_COURIER_IRQN_MASK;
+  int m0_extirq = msg & BL808_COURIER_IRQn_MASK;
   int irqn = m0_extirq + BL808_M0_IRQ_OFFSET + RISCV_IRQ_SEXT;
 
   irq_dispatch(irqn, NULL);
