@@ -169,7 +169,7 @@ static uart_dev_t g_uart0port =
 #else
   .isconsole = 0,
 #endif
-  
+
   .recv =
     {
       .size   = CONFIG_UART0_RXBUFSIZE,
@@ -216,7 +216,7 @@ static uart_dev_t g_uart1port =
 #else
   .isconsole = 0,
 #endif
-  
+
   .recv =
     {
       .size   = CONFIG_UART1_RXBUFSIZE,
@@ -263,7 +263,7 @@ static uart_dev_t g_uart2port =
 #else
   .isconsole = 0,
 #endif
-  
+
   .recv =
     {
       .size   = CONFIG_UART2_RXBUFSIZE,
@@ -310,7 +310,7 @@ static uart_dev_t g_uart3port =
 #else
   .isconsole = 0,
 #endif
-  
+
   .recv =
     {
       .size   = CONFIG_UART3_RXBUFSIZE,
@@ -405,59 +405,68 @@ static void bl808_uart_configure(const struct uart_config_s *config)
   uint8_t uart_idx = config->idx;
 
   /* UTX_CONFIG */
+
   uint32_t tmp_val = getreg32(BL808_UART_UTX_CONFIG(uart_idx));
 
   tmp_val &= ~UART_UTX_CONFIG_CR_BIT_CNT_P_MASK;
-  if (config->stop_bits) {
-    tmp_val |= 3 << UART_UTX_CONFIG_CR_BIT_CNT_P_SHIFT;
-  } else {
-    tmp_val |= 1 << UART_UTX_CONFIG_CR_BIT_CNT_P_SHIFT;
-  }
+  if (config->stop_bits)
+    {
+      tmp_val |= 3 << UART_UTX_CONFIG_CR_BIT_CNT_P_SHIFT;
+    }
+  else
+    {
+      tmp_val |= 1 << UART_UTX_CONFIG_CR_BIT_CNT_P_SHIFT;
+    }
 
   tmp_val &= ~UART_UTX_CONFIG_CR_BIT_CNT_D_MASK;
   tmp_val |= config->data_bits << UART_UTX_CONFIG_CR_BIT_CNT_D_SHIFT;
 
-  switch (config->parity) {
-  case 0:
-    tmp_val &= ~UART_UTX_CONFIG_CR_PRT_EN;
-    break;
+  switch (config->parity)
+    {
+    case 0:
+      tmp_val &= ~UART_UTX_CONFIG_CR_PRT_EN;
+      break;
 
-  case 1:
-    tmp_val |= UART_UTX_CONFIG_CR_PRT_EN;
-    tmp_val |= UART_UTX_CONFIG_CR_PRT_SEL;
-    break;
+    case 1:
+      tmp_val |= UART_UTX_CONFIG_CR_PRT_EN;
+      tmp_val |= UART_UTX_CONFIG_CR_PRT_SEL;
+      break;
 
-  case 2:
-    tmp_val |= UART_UTX_CONFIG_CR_PRT_EN;
-    tmp_val &= ~UART_UTX_CONFIG_CR_PRT_SEL;
-    break;
-  }
-  
+    case 2:
+      tmp_val |= UART_UTX_CONFIG_CR_PRT_EN;
+      tmp_val &= ~UART_UTX_CONFIG_CR_PRT_SEL;
+      break;
+    }
+
   tmp_val |= UART_UTX_CONFIG_CR_FRM_EN;
 
-  
-  if (config->oflow_ctl) {
-    tmp_val |= UART_UTX_CONFIG_CR_CTS_EN;
-  } else {
-    tmp_val &= ~UART_UTX_CONFIG_CR_CTS_EN;
-  }
-  
-  
+  if (config->oflow_ctl)
+    {
+      tmp_val |= UART_UTX_CONFIG_CR_CTS_EN;
+    }
+  else
+    {
+      tmp_val &= ~UART_UTX_CONFIG_CR_CTS_EN;
+    }
+
   tmp_val |= UART_UTX_CONFIG_CR_EN;
   putreg32(tmp_val, BL808_UART_UTX_CONFIG(uart_idx));
 
   /* URX CONFIG */
+
   tmp_val = getreg32(BL808_UART_URX_CONFIG(uart_idx));
   tmp_val |= UART_URX_CONFIG_CR_EN;
   putreg32(tmp_val, BL808_UART_URX_CONFIG(uart_idx));
 
   /* BIT PRD (baud rate) */
-  uint16_t div = BL808_UART_CLK/config->baud - 1;
+
+  uint16_t div = BL808_UART_CLK / config->baud - 1;
   tmp_val = getreg32(BL808_UART_BIT_PRD(uart_idx));
   tmp_val = div | (div << 16);
   putreg32(tmp_val, BL808_UART_BIT_PRD(uart_idx));
 
   /* FIFO CONFIG 1 */
+
   tmp_val = getreg32(BL808_UART_FIFO_CONFIG_1(uart_idx));
   tmp_val |= 1 << UART_FIFO_CONFIG_1_TX_TH_SHIFT;
   putreg32(tmp_val, BL808_UART_FIFO_CONFIG_1(uart_idx));
@@ -1004,7 +1013,7 @@ void bl808_serialinit(void)
   tmp_val = getreg32(BL808_GPIO_CFG(29));
   tmp_val = tmp_val & ~GPIO_CFGCTL0_GPIO_0_FUNC_SEL_MASK;
   tmp_val |= 7 << GPIO_CFGCTL0_GPIO_0_FUNC_SEL_SHIFT;
-  putreg32(tmp_val, BL808_GPIO_CFG(29)); 
+  putreg32(tmp_val, BL808_GPIO_CFG(29));
 }
 
 /****************************************************************************
@@ -1028,16 +1037,16 @@ int up_putc(int ch)
       /* Add CR */
 
       while ((getreg32(BL808_UART_FIFO_CONFIG_1(uart_idx)) &
-	    UART_FIFO_CONFIG_1_TX_CNT_MASK) == 0);
-    
+            UART_FIFO_CONFIG_1_TX_CNT_MASK) == 0);
+
       putreg32('\r', BL808_UART_FIFO_WDATA(uart_idx));
     }
 
   while ((getreg32(BL808_UART_FIFO_CONFIG_1(uart_idx)) &
-	    UART_FIFO_CONFIG_1_TX_CNT_MASK) == 0);
-    
+            UART_FIFO_CONFIG_1_TX_CNT_MASK) == 0);
+
   putreg32(ch, BL808_UART_FIFO_WDATA(uart_idx));
-  
+
   leave_critical_section(flags);
   return ch;
 }

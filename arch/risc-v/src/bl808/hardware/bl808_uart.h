@@ -35,9 +35,9 @@
 #define BL808_UART_CLK 40000000
 
 #define BL808_UART_BASE(n) ((n == 0) ? BL808_UART0_BASE \
-			    : (n == 1) ? BL808_UART1_BASE \
-			    : (n == 2) ? BL808_UART2_BASE \
-			    : BL808_UART3_BASE)
+                            : (n == 1) ? BL808_UART1_BASE \
+                            : (n == 2) ? BL808_UART2_BASE \
+                            : BL808_UART3_BASE)
 
 /* Register offsets *********************************************************/
 
