@@ -25,7 +25,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define BL808_COURIER_IRQn_MASK 0xff
+#define BL808_COURIER_IRQN_MASK 0xff
 #define BL808_INT_SIG_SHIFT 8
 #define BL808_INT_EN_SHIFT 9
 
