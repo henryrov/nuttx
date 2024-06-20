@@ -48,7 +48,15 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+#if defined(CONFIG_UART0_SERIAL_CONSOLE)
+#define CONSOLE_DEV g_uart0port /* UART0 is console */
+#elif defined(CONFIG_UART1_SERIAL_CONSOLE)
+#define CONSOLE_DEV g_uart1port /* UART1 is console */
+#elif defined(CONFIG_UART2_SERIAL_CONSOLE)
+#define CONSOLE_DEV g_uart2port /* UART2 is console */
+#elif defined(CONFIG_UART3_SERIAL_CONSOLE)
 #define CONSOLE_DEV g_uart3port /* UART3 is console */
+#endif
 
 /****************************************************************************
  * Private Types
@@ -156,7 +164,12 @@ static struct bl808_uart_s g_uart0priv =
 
 static uart_dev_t g_uart0port =
 {
+#ifdef CONFIG_UART0_SERIAL_CONSOLE
+  .isconsole = 1,
+#else
   .isconsole = 0,
+#endif
+  
   .recv =
     {
       .size   = CONFIG_UART0_RXBUFSIZE,
@@ -198,7 +211,12 @@ static struct bl808_uart_s g_uart1priv =
 
 static uart_dev_t g_uart1port =
 {
+#ifdef CONFIG_UART1_SERIAL_CONSOLE
+  .isconsole = 1,
+#else
   .isconsole = 0,
+#endif
+  
   .recv =
     {
       .size   = CONFIG_UART1_RXBUFSIZE,
@@ -240,7 +258,12 @@ static struct bl808_uart_s g_uart2priv =
 
 static uart_dev_t g_uart2port =
 {
+#ifdef CONFIG_UART2_SERIAL_CONSOLE
+  .isconsole = 1,
+#else
   .isconsole = 0,
+#endif
+  
   .recv =
     {
       .size   = CONFIG_UART2_RXBUFSIZE,
@@ -282,7 +305,12 @@ static struct bl808_uart_s g_uart3priv =
 
 static uart_dev_t g_uart3port =
 {
+#ifdef CONFIG_UART3_SERIAL_CONSOLE
   .isconsole = 1,
+#else
+  .isconsole = 0,
+#endif
+  
   .recv =
     {
       .size   = CONFIG_UART3_RXBUFSIZE,
@@ -958,28 +986,25 @@ void bl808_serialinit(void)
       uart_register(devname, g_uart_devs[i]);
     }
 
-  /*
   uint32_t tmp_val = getreg32(BL808_GLB_UART_CFG1);
-  tmp_val = tmp_val & !UART_CFG_SIG_SEL_MASK(4);
+  tmp_val = tmp_val & ~UART_CFG_SIG_SEL_MASK(4);
   tmp_val |= 6 << UART_CFG_SIG_SEL_SHIFT(4);
   putreg32(tmp_val, BL808_GLB_UART_CFG1);
 
   tmp_val = getreg32(BL808_GPIO_CFG(28));
-  tmp_val = tmp_val & !GPIO_CFGCTL0_GPIO_0_FUNC_SEL_MASK;
+  tmp_val = tmp_val & ~GPIO_CFGCTL0_GPIO_0_FUNC_SEL_MASK;
   tmp_val |= 7 << GPIO_CFGCTL0_GPIO_0_FUNC_SEL_SHIFT;
   putreg32(tmp_val, BL808_GPIO_CFG(28));
-  */
 
-  /*
-  for (;;) {
-    uint8_t uart_idx = 1;
+  tmp_val = getreg32(BL808_GLB_UART_CFG1);
+  tmp_val = tmp_val & ~UART_CFG_SIG_SEL_MASK(5);
+  tmp_val |= 7 << UART_CFG_SIG_SEL_SHIFT(5);
+  putreg32(tmp_val, BL808_GLB_UART_CFG1);
 
-    while ((getreg32(BL808_UART_FIFO_CONFIG_1(uart_idx)) &
-	    UART_FIFO_CONFIG_1_TX_CNT_MASK) == 0);
-    
-    putreg32('s', BL808_UART_FIFO_WDATA(uart_idx));
-  }
-  */
+  tmp_val = getreg32(BL808_GPIO_CFG(29));
+  tmp_val = tmp_val & ~GPIO_CFGCTL0_GPIO_0_FUNC_SEL_MASK;
+  tmp_val |= 7 << GPIO_CFGCTL0_GPIO_0_FUNC_SEL_SHIFT;
+  putreg32(tmp_val, BL808_GPIO_CFG(29)); 
 }
 
 /****************************************************************************
