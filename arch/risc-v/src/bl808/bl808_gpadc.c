@@ -46,8 +46,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define BL808_TOTAL_NCHANNELS 18
-#define BL808_SCAN_MAX_CHANNELS 12
+#define BL808_GPADC_TOTAL_NCHANNELS 18
+#define BL808_GPADC_SCAN_MAX_CHANNELS 12
 
 /****************************************************************************
  * Private Types
@@ -56,7 +56,8 @@
 struct bl808_gpadc_s
 {
   const struct adc_callback_s *callback;
-  bool channel_enable[BL808_TOTAL_NCHANNELS];
+  bool channel_enable[BL808_GPADC_TOTAL_NCHANNELS];
+  uint8_t nchannels;
 };
 
 enum bl808_gpadc_channel_e
@@ -99,9 +100,12 @@ static int bl808_gpadc_ioctl(struct adc_dev_s *dev,
  * Private Data
  ****************************************************************************/
 
-static struct gpadc_priv =
+static struct bl808_gpadc_s gpadc_priv =
 {
-  .callback = NULL;
+  .callback = NULL,
+
+  /* channel_enable determines which channels will be part of the scan */
+
   .channel_enable =
   {
     [GPADC_CH0] = true,
@@ -122,8 +126,10 @@ static struct gpadc_priv =
     [GPADC_CH_TSEN] = false,
     [GPADC_CH_VREF] = false,
     [GPADC_CH_GND] = false,
-  }
-}
+  },
+
+  .nchannels = 12
+};
   
 static struct adc_ops_s gpadc_ops =
 {
@@ -133,23 +139,109 @@ static struct adc_ops_s gpadc_ops =
   .ao_shutdown = bl808_gpadc_shutdown,
   .ao_rxint = bl808_gpadc_rxint,
   .ao_ioctl = bl808_gpadc_ioctl
-}
+};
 
 static int bl808_gpadc_bind(struct adc_dev_s *dev,
                             const struct adc_callback_s *callback)
 {
-  dev->priv->callback = callback;
+  ((struct bl808_gpadc_s *)(dev->ad_priv))->callback = callback;
 
   return OK;
 }
 
 static void bl808_gpadc_reset(struct adc_dev_s *dev)
 {
-  /* Nothing for now */
+  modifyreg32(BL808_GPADC_CMD, 0, GPADC_SOFT_RST);
+
+  /*
+  for (int i = 0; i < 10; i++)
+    {
+      asm("nop");
+    }
+  */
+  
+  modifyreg32(BL808_GPADC_CMD, GPADC_SOFT_RST, 0);
 }
 
 static int bl808_gpadc_setup(struct adc_dev_s *dev)
 {
+  struct bl808_gpadc_s *priv = dev->ad_priv;
+  
+  /* The setup process below is mostly taken from bouffalo_sdk */
+  
+  /* Disable and reenable ADC */
+  
+  modifyreg32(BL808_GPADC_CMD, GPADC_GLOBAL_EN, 0);
+  modifyreg32(BL808_GPADC_CMD, 0, GPADC_GLOBAL_EN);
+
+  /* Soft reset */
+  
+  modifyreg32(BL808_GPADC_CMD, 0, GPADC_SOFT_RST);
+
+  /*
+  for (int i = 0; i < 10; i++)
+    {
+      asm("nop");
+    }
+  */
+  
+  modifyreg32(BL808_GPADC_CMD, GPADC_SOFT_RST, 0);
+
+  modifyreg32(BL808_GPADC_CONFIG1, 0,
+              (2 << GPADC_V18_SEL_SHIFT)
+              | (1 << GPADC_V11_SEL_SHIFT)
+              | GPADC_SCAN_EN
+              | GPADC_CLK_ANA_INV);
+
+  /* Use GND as negative channel for now */
+  
+  modifyreg32(BL808_GPADC_CMD, 0, GPADC_NEG_GND);
+
+  modifyreg32(BL808_GPADC_CONFIG, 0,
+	      GPADC_RDY_CLR
+	      | GPADC_FIFO_OVERRUN_CLR
+	      | GPADC_FIFO_UNDERRUN_CLR);
+
+  /* Set scan channels */
+  
+  modifyreg32(BL808_GPADC_SCAN_POS1,
+	      0xffffffff, 0);
+  modifyreg32(BL808_GPADC_SCAN_POS2,
+	      0xffffffff, 0);
+  
+  uint8_t enabled_channels = 0;
+  for (int channel_idx = 0;
+       channel_idx < BL808_GPADC_TOTAL_NCHANNELS;
+       channel_idx++)
+    {
+      if (priv->channel_enable[channel_idx])
+	{
+	  if (enabled_channels < 6)
+	    {
+	      modifyreg32(BL808_GPADC_SCAN_POS1, 0,
+			  (channel_idx
+			   << GPADC_SCAN_POS_SHIFT(enabled_channels)));
+	    }
+	  else if (enabled_channels < BL808_GPADC_SCAN_MAX_CHANNELS)
+	    {
+	      modifyreg32(BL808_GPADC_SCAN_POS2, 0,
+			  (channel_idx
+			   << GPADC_SCAN_POS_SHIFT(enabled_channels)));
+	    }
+	  else
+	    {
+	      /* Attempt to enable more channels than possible */
+
+	      PANIC();
+	    }
+	  enabled_channels++;
+	}
+    }
+
+  modifyreg32(BL808_GPADC_CONFIG1, 0,
+	      (enabled_channels << GPADC_SCAN_LENGTH_SHIFT));
+
+  return OK;
 }
 
 static void bl808_gpadc_shutdown(struct adc_dev_s *dev)
@@ -172,9 +264,11 @@ static int bl808_gpadc_ioctl(struct adc_dev_s *dev,
 
 int bl808_adc_init(void)
 {
-  gpadc = kmm_zalloc(sizeof(struct adc_dev_s));
+  struct adc_dev_s *dev = zalloc(sizeof(struct adc_dev_s));
   dev->ad_ops  = &gpadc_ops;
-  dev->ad_priv = gpadc_priv;
+  dev->ad_priv = &gpadc_priv;
   
-  ret = adc_register("/dev/gpadc", gpadc_dev);
+  int ret = adc_register("/dev/gpadc", dev);
+
+  return ret;
 }
