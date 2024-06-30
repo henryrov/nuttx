@@ -46,6 +46,9 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+#define BL808_TOTAL_NCHANNELS 18
+#define BL808_SCAN_MAX_CHANNELS 12
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -53,6 +56,29 @@
 struct bl808_gpadc_s
 {
   const struct adc_callback_s *callback;
+  bool channel_enable[BL808_TOTAL_NCHANNELS];
+};
+
+enum bl808_gpadc_channel_e
+{
+  GPADC_CH0,
+  GPADC_CH1,
+  GPADC_CH2,
+  GPADC_CH3,
+  GPADC_CH4,
+  GPADC_CH5,
+  GPADC_CH6,
+  GPADC_CH7,
+  GPADC_CH8,
+  GPADC_CH9,
+  GPADC_CH10,
+  GPADC_CH11,
+  GPADC_CH_DAC_OUTA,
+  GPADC_CH_DAC_OUTB,
+  GPADC_CH_HALF_VBAT,
+  GPADC_CH_TSEN,
+  GPADC_CH_VREF,
+  GPADC_CH_GND
 };
 
 /****************************************************************************
@@ -76,6 +102,27 @@ static int bl808_gpadc_ioctl(struct adc_dev_s *dev,
 static struct gpadc_priv =
 {
   .callback = NULL;
+  .channel_enable =
+  {
+    [GPADC_CH0] = true,
+    [GPADC_CH1] = true,
+    [GPADC_CH2] = true,
+    [GPADC_CH3] = true,
+    [GPADC_CH4] = true,
+    [GPADC_CH5] = true,
+    [GPADC_CH6] = true,
+    [GPADC_CH7] = true,
+    [GPADC_CH8] = true,
+    [GPADC_CH9] = true,
+    [GPADC_CH10] = true,
+    [GPADC_CH11] = true,
+    [GPADC_CH_DAC_OUTA] = false,
+    [GPADC_CH_DAC_OUTB] = false,
+    [GPADC_CH_HALF_VBAT] = false,
+    [GPADC_CH_TSEN] = false,
+    [GPADC_CH_VREF] = false,
+    [GPADC_CH_GND] = false,
+  }
 }
   
 static struct adc_ops_s gpadc_ops =
@@ -86,6 +133,37 @@ static struct adc_ops_s gpadc_ops =
   .ao_shutdown = bl808_gpadc_shutdown,
   .ao_rxint = bl808_gpadc_rxint,
   .ao_ioctl = bl808_gpadc_ioctl
+}
+
+static int bl808_gpadc_bind(struct adc_dev_s *dev,
+                            const struct adc_callback_s *callback)
+{
+  dev->priv->callback = callback;
+
+  return OK;
+}
+
+static void bl808_gpadc_reset(struct adc_dev_s *dev)
+{
+  /* Nothing for now */
+}
+
+static int bl808_gpadc_setup(struct adc_dev_s *dev)
+{
+}
+
+static void bl808_gpadc_shutdown(struct adc_dev_s *dev)
+{
+}
+
+static void bl808_gpadc_rxint(struct adc_dev_s *dev,
+                              bool enable)
+{
+}
+
+static int bl808_gpadc_ioctl(struct adc_dev_s *dev,
+                             int cmd, unsigned long arg)
+{
 }
 
 /****************************************************************************
