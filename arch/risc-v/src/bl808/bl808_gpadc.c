@@ -150,16 +150,19 @@ static int __gpadc_interrupt(int irq, void *context, void *arg)
   uint32_t status = getreg32(BL808_GPADC_CONFIG);
 
   up_putc('i');
-  up_putc('z');
 
   if (status & GPADC_RDY)
     {
       uint8_t count = (status & GPADC_FIFO_DATA_COUNT_MASK)
 	>> GPADC_FIFO_DATA_COUNT_SHIFT;
-      printf("%d", count);
+      up_putc('0' + count);
 
       modifyreg32(BL808_GPADC_CONFIG, 0,
 		  GPADC_RDY_CLR);
+    }
+  else
+    {
+      up_putc('x');
     }
   return OK;
 }
