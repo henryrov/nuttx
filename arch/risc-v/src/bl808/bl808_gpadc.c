@@ -54,13 +54,6 @@
  * Private Types
  ****************************************************************************/
 
-struct bl808_gpadc_s
-{
-  const struct adc_callback_s *callback;
-  bool channel_enable[BL808_GPADC_TOTAL_NCHANNELS];
-  uint8_t nchannels;
-};
-
 enum bl808_gpadc_channel_e
 {
   GPADC_CH0,
@@ -81,6 +74,13 @@ enum bl808_gpadc_channel_e
   GPADC_CH_TSEN,
   GPADC_CH_VREF,
   GPADC_CH_GND
+};
+
+struct bl808_gpadc_s
+{
+  const struct adc_callback_s *callback;
+  enum bl808_gpadc_channel_e enabled_channels[BL808_GPADC_SCAN_MAX_CHANNELS];
+  uint8_t nchannels;
 };
 
 /****************************************************************************
@@ -107,31 +107,23 @@ static struct bl808_gpadc_s gpadc_priv =
 
   /* channel_enable determines which channels will be part of the scan */
 
-  .channel_enable =
+  .enabled_channels =
   {
-    [GPADC_CH0] = true,
-    [GPADC_CH1] = true,
-    [GPADC_CH2] = true,
-    [GPADC_CH3] = true,
-    [GPADC_CH4] = true,
-    [GPADC_CH5] = true,
-    [GPADC_CH6] = true,
-    [GPADC_CH7] = true,
-    [GPADC_CH8] = true,
-    [GPADC_CH9] = true,
-    [GPADC_CH10] = true,
-    [GPADC_CH11] = true,
-    [GPADC_CH_DAC_OUTA] = false,
-    [GPADC_CH_DAC_OUTB] = false,
-    [GPADC_CH_HALF_VBAT] = false,
-    [GPADC_CH_TSEN] = false,
-    [GPADC_CH_VREF] = false,
-    [GPADC_CH_GND] = false,
+    GPADC_CH0,
+    GPADC_CH1,
+    GPADC_CH2,
+    GPADC_CH3,
+    GPADC_CH4,
+    GPADC_CH5,
+    GPADC_CH6,
+    GPADC_CH7,
+    GPADC_CH8,
+    GPADC_CH9,
+    GPADC_CH10,
+    GPADC_CH11,
   },
 
-  /* nchannels will be overwritten in bl808_gpadc_setup */
-
-  .nchannels = 0
+  .nchannels = 12
 };
   
 static struct adc_ops_s gpadc_ops =
@@ -217,9 +209,8 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
   modifyreg32(BL808_GPADC_CONFIG1, GPADC_CONT_CONV_EN,
               (2 << GPADC_V18_SEL_SHIFT)
               | (1 << GPADC_V11_SEL_SHIFT)
-              //| GPADC_SCAN_EN
+              | GPADC_SCAN_EN
               | GPADC_CLK_ANA_INV);
-	      //| GPADC_CONT_CONV_EN
 
   modifyreg32(BL808_GPADC_CONFIG2, 0,
 	      (2 << GPADC_DLY_SEL_SHIFT));
@@ -245,39 +236,27 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
   modifyreg32(BL808_GPADC_SCAN_POS2,
 	      0xffffffff, 0);
   
-  uint8_t enabled_channels = 0;
   for (int channel_idx = 0;
-       channel_idx < BL808_GPADC_TOTAL_NCHANNELS;
+       channel_idx < priv->nchannels;
        channel_idx++)
     {
-      if (priv->channel_enable[channel_idx])
+      
+      if (channel_idx < 6)
 	{
-	  if (enabled_channels < 6)
-	    {
-	      modifyreg32(BL808_GPADC_SCAN_POS1, 0,
-			  (channel_idx
-			   << GPADC_SCAN_POS_SHIFT(enabled_channels)));
-	    }
-	  else if (enabled_channels < BL808_GPADC_SCAN_MAX_CHANNELS)
-	    {
-	      modifyreg32(BL808_GPADC_SCAN_POS2, 0,
-			  (channel_idx
-			   << GPADC_SCAN_POS_SHIFT(enabled_channels)));
-	    }
-	  else
-	    {
-	      /* Attempt to enable more channels than possible */
-
-	      PANIC();
-	    }
-	  enabled_channels++;
+	  modifyreg32(BL808_GPADC_SCAN_POS1, 0,
+		      (priv->enabled_channels[channel_idx]
+		       << GPADC_SCAN_POS_SHIFT(channel_idx)));
+	}
+      else
+	{
+	  modifyreg32(BL808_GPADC_SCAN_POS2, 0,
+		      (priv->enabled_channels[channel_idx]
+		       << GPADC_SCAN_POS_SHIFT(channel_idx)));
 	}
     }
-
+  
   modifyreg32(BL808_GPADC_CONFIG1, 0,
-	      ((enabled_channels - 1) << GPADC_SCAN_LENGTH_SHIFT));
-
-  priv->nchannels = enabled_channels;
+	      ((priv->nchannels - 1) << GPADC_SCAN_LENGTH_SHIFT));
 
   modifyreg32(BL808_GPADC_CONFIG, 0,
 	      GPADC_FIFO_CLR);
