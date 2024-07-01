@@ -74,6 +74,11 @@
 
 /* Register bit definitions *************************************************/
 
+/* GPADC_DMA_RDATA */
+
+#define GPADC_DMA_RDATA_SHIFT (0U)
+#define GPADC_DMA_RDATA_MASK  (0x3ffffff << GPADC_DMA_RDATA_SHIFT)
+
 /* GPADC_CONFIG */
 
 #define GPADC_DMA_EN        (1 << 0U)

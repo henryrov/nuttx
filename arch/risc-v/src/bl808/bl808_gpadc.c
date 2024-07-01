@@ -70,10 +70,10 @@ enum bl808_gpadc_channel_e
   GPADC_CH11,
   GPADC_CH_DAC_OUTA,
   GPADC_CH_DAC_OUTB,
-  GPADC_CH_HALF_VBAT,
   GPADC_CH_TSEN,
-  GPADC_CH_VREF,
-  GPADC_CH_GND
+  GPADC_CH_VREF = 16,
+  GPADC_CH_HALF_VBAT = 18,
+  GPADC_CH_GND = 23
 };
 
 struct bl808_gpadc_s
@@ -109,10 +109,10 @@ static struct bl808_gpadc_s gpadc_priv =
 
   .enabled_channels =
   {
-    GPADC_CH0,
-    GPADC_CH1,
-    GPADC_CH2,
-    GPADC_CH3,
+    GPADC_CH_VREF,
+    GPADC_CH_TSEN,
+    GPADC_CH_HALF_VBAT,
+    GPADC_CH_GND,
     GPADC_CH4,
     GPADC_CH5,
     GPADC_CH6,
@@ -139,9 +139,8 @@ static struct adc_ops_s gpadc_ops =
 static int __gpadc_interrupt(int irq, void *context, void *arg)
 {
   struct adc_dev_s *dev = (struct adc_dev_s *)arg;
+  struct bl808_gpadc_s *priv = dev->ad_priv;
   uint32_t status = getreg32(BL808_GPADC_CONFIG);
-
-  up_putc('i');
 
   if (status & GPADC_RDY)
     {
@@ -149,6 +148,27 @@ static int __gpadc_interrupt(int irq, void *context, void *arg)
 	>> GPADC_FIFO_DATA_COUNT_SHIFT;
       up_putc('0' + count);
 
+      while (count != 0)
+	{
+	  uint32_t result = getreg32(BL808_GPADC_DMA_RDATA);
+	  uint32_t channel = (result & (0x1f << 21)) >> 21;
+	  uint32_t adc_val = result & 0xffff;
+
+	  int ret = priv->callback->au_receive(dev, channel, adc_val);
+	  if (ret)
+	    {
+	      up_putc('z');
+	    }
+
+	  status = getreg32(BL808_GPADC_CONFIG);
+	  count = (status & GPADC_FIFO_DATA_COUNT_MASK)
+	    >> GPADC_FIFO_DATA_COUNT_SHIFT;
+	  up_putc('0' + count);
+	}
+
+      modifyreg32(BL808_GPADC_CONFIG, 0,
+	      GPADC_FIFO_CLR);
+      
       modifyreg32(BL808_GPADC_CONFIG, 0,
 		  GPADC_RDY_CLR);
     }
@@ -162,7 +182,6 @@ static int __gpadc_interrupt(int irq, void *context, void *arg)
 static int bl808_gpadc_bind(struct adc_dev_s *dev,
                             const struct adc_callback_s *callback)
 {
-  up_putc('b');
   ((struct bl808_gpadc_s *)(dev->ad_priv))->callback = callback;
 
   return OK;
@@ -197,11 +216,12 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
   
   modifyreg32(BL808_GPADC_CMD, 0, GPADC_SOFT_RST);
 
-  
+  /*
   for (int i = 0; i < 10; i++)
     {
       asm("nop");
     }
+  */
   
   
   modifyreg32(BL808_GPADC_CMD, GPADC_SOFT_RST, 0);
@@ -213,7 +233,9 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
               | GPADC_CLK_ANA_INV);
 
   modifyreg32(BL808_GPADC_CONFIG2, 0,
-	      (2 << GPADC_DLY_SEL_SHIFT));
+	      (2 << GPADC_DLY_SEL_SHIFT)
+	      | GPADC_VBAT_EN
+	      | GPADC_TS_EN);
 
   /* Use GND as negative channel for now */
   
@@ -280,7 +302,6 @@ static void bl808_gpadc_rxint(struct adc_dev_s *dev,
 
       /* Clear and then set bit to start conversion */
 
-      modifyreg32(BL808_GPADC_CMD, GPADC_CONV_START, 0); 
       modifyreg32(BL808_GPADC_CMD, 0, GPADC_CONV_START);
 
       up_putc('r');
