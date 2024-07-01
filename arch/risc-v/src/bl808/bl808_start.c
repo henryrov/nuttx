@@ -37,6 +37,7 @@
 #include "bl808_mm_init.h"
 #include "bl808_memorymap.h"
 #include "bl808_serial.h"
+#include "bl808_gpadc.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -223,6 +224,8 @@ void bl808_start_s(int mhartid)
   showprogress('B');
 
   /* Do board initialization */
+
+  //bl808_gpadc_init();
 
   showprogress('C');
 

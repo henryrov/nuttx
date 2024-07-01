@@ -25,6 +25,6 @@
  * Public Functions Prototypes
  ****************************************************************************/
 
-int bl808_adc_init(void);
+int bl808_gpadc_init(void);
 
 #endif /* __ARCH_RISC_V_SRC_BL808_BL808_GPADC_H */

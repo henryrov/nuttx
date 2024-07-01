@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -128,7 +129,9 @@ static struct bl808_gpadc_s gpadc_priv =
     [GPADC_CH_GND] = false,
   },
 
-  .nchannels = 12
+  /* nchannels will be overwritten in bl808_gpadc_setup */
+
+  .nchannels = 0
 };
   
 static struct adc_ops_s gpadc_ops =
@@ -141,9 +144,30 @@ static struct adc_ops_s gpadc_ops =
   .ao_ioctl = bl808_gpadc_ioctl
 };
 
+static int __gpadc_interrupt(int irq, void *context, void *arg)
+{
+  struct adc_dev_s *dev = (struct adc_dev_s *)arg;
+  uint32_t status = getreg32(BL808_GPADC_CONFIG);
+
+  up_putc('i');
+  up_putc('z');
+
+  if (status & GPADC_RDY)
+    {
+      uint8_t count = (status & GPADC_FIFO_DATA_COUNT_MASK)
+	>> GPADC_FIFO_DATA_COUNT_SHIFT;
+      printf("%d", count);
+
+      modifyreg32(BL808_GPADC_CONFIG, 0,
+		  GPADC_RDY_CLR);
+    }
+  return OK;
+}
+
 static int bl808_gpadc_bind(struct adc_dev_s *dev,
                             const struct adc_callback_s *callback)
 {
+  up_putc('b');
   ((struct bl808_gpadc_s *)(dev->ad_priv))->callback = callback;
 
   return OK;
@@ -165,6 +189,7 @@ static void bl808_gpadc_reset(struct adc_dev_s *dev)
 
 static int bl808_gpadc_setup(struct adc_dev_s *dev)
 {
+  up_putc('s');
   struct bl808_gpadc_s *priv = dev->ad_priv;
   
   /* The setup process below is mostly taken from bouffalo_sdk */
@@ -172,26 +197,29 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
   /* Disable and reenable ADC */
   
   modifyreg32(BL808_GPADC_CMD, GPADC_GLOBAL_EN, 0);
-  modifyreg32(BL808_GPADC_CMD, 0, GPADC_GLOBAL_EN);
 
   /* Soft reset */
   
   modifyreg32(BL808_GPADC_CMD, 0, GPADC_SOFT_RST);
 
-  /*
+  
   for (int i = 0; i < 10; i++)
     {
       asm("nop");
     }
-  */
+  
   
   modifyreg32(BL808_GPADC_CMD, GPADC_SOFT_RST, 0);
 
-  modifyreg32(BL808_GPADC_CONFIG1, 0,
+  modifyreg32(BL808_GPADC_CONFIG1, GPADC_CONT_CONV_EN,
               (2 << GPADC_V18_SEL_SHIFT)
               | (1 << GPADC_V11_SEL_SHIFT)
-              | GPADC_SCAN_EN
+              //| GPADC_SCAN_EN
               | GPADC_CLK_ANA_INV);
+	      //| GPADC_CONT_CONV_EN
+
+  modifyreg32(BL808_GPADC_CONFIG2, 0,
+	      (2 << GPADC_DLY_SEL_SHIFT));
 
   /* Use GND as negative channel for now */
   
@@ -201,6 +229,11 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
 	      GPADC_RDY_CLR
 	      | GPADC_FIFO_OVERRUN_CLR
 	      | GPADC_FIFO_UNDERRUN_CLR);
+
+  modifyreg32(BL808_GPADC_CONFIG,
+	      GPADC_RDY_CLR
+	      | GPADC_FIFO_OVERRUN_CLR
+	      | GPADC_FIFO_UNDERRUN_CLR, 0);
 
   /* Set scan channels */
   
@@ -239,7 +272,14 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
     }
 
   modifyreg32(BL808_GPADC_CONFIG1, 0,
-	      (enabled_channels << GPADC_SCAN_LENGTH_SHIFT));
+	      ((enabled_channels - 1) << GPADC_SCAN_LENGTH_SHIFT));
+
+  priv->nchannels = enabled_channels;
+
+  modifyreg32(BL808_GPADC_CONFIG, 0,
+	      GPADC_FIFO_CLR);
+
+  modifyreg32(BL808_GPADC_CMD, 0, GPADC_GLOBAL_EN);
 
   return OK;
 }
@@ -251,6 +291,38 @@ static void bl808_gpadc_shutdown(struct adc_dev_s *dev)
 static void bl808_gpadc_rxint(struct adc_dev_s *dev,
                               bool enable)
 {
+  if (enable)
+    {
+      irq_attach(BL808_IRQ_GPADC, __gpadc_interrupt, (void *)dev);
+      up_enable_irq(BL808_IRQ_GPADC);
+
+      /* Clear and then set bit to start conversion */
+
+      modifyreg32(BL808_GPADC_CMD, GPADC_CONV_START, 0); 
+      modifyreg32(BL808_GPADC_CMD, 0, GPADC_CONV_START);
+
+      up_putc('r');
+
+      /*
+      for (;;) {
+	uint32_t status = getreg32(BL808_GPADC_CONFIG);
+	uint32_t count = (status & GPADC_FIFO_DATA_COUNT_MASK) >> GPADC_FIFO_DATA_COUNT_SHIFT;
+	
+	if (count) {
+	  printf("%d\n", count);
+	}
+      }
+      */
+    }
+  else
+    {
+      up_disable_irq(BL808_IRQ_GPADC);
+      irq_detach(BL808_IRQ_GPADC);
+
+      /* Stop conversion */
+
+      modifyreg32(BL808_GPADC_CMD, GPADC_CONV_START, 0);
+    }
 }
 
 static int bl808_gpadc_ioctl(struct adc_dev_s *dev,
@@ -262,9 +334,10 @@ static int bl808_gpadc_ioctl(struct adc_dev_s *dev,
  * Public Functions
  ****************************************************************************/
 
-int bl808_adc_init(void)
+int bl808_gpadc_init(void)
 {
-  struct adc_dev_s *dev = zalloc(sizeof(struct adc_dev_s));
+  up_putc('a');
+  struct adc_dev_s *dev = kmm_zalloc(sizeof(struct adc_dev_s));
   dev->ad_ops  = &gpadc_ops;
   dev->ad_priv = &gpadc_priv;
   

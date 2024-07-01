@@ -144,6 +144,33 @@
 #define GPADC_V18_SEL_SHIFT       (29U)
 #define GPADC_V18_SEL_MASK        (0x3 << GPADC_V18_SEL_SHIFT)
 
+/* GPADC_CONFIG2 */
+
+#define GPADC_DIFF_MODE        (1 << 2U)
+#define GPADC_VREF_SEL         (1 << 3U)
+#define GPADC_VBAT_EN          (1 << 4U)
+#define GPADC_TSEXT_SEL        (1 << 5U)
+#define GPADC_TS_EN            (1 << 6U)
+#define GPADC_PGA_VCM_SHIFT    (7U)
+#define GPADC_PGA_VCM_MASK     (0x3 << GPADC_PGA_VCM_SHIFT)
+#define GPADC_PGA_OS_CAL_SHIFT (9U)
+#define GPADC_PGA_OS_CAL_MASK  (0xf << GPADC_PGA_OS_CAL_SHIFT)
+#define GPADC_PGA_EN           (1 << 13U)
+#define GPADC_PGA_VCMI_EN      (1 << 14U)
+#define GPADC_CHOP_MODE_SHIFT  (15U)
+#define GPADC_CHOP_MODE_MASK   (0x3 << GPADC_CHOP_MODE_SHIFT)
+#define GPADC_BIAS_SEL         (1 << 17U)
+#define GPADC_TEST_EN          (1 << 18U)
+#define GPADC_TEST_SEL_SHIFT   (19U)
+#define GPADC_TEST_SEL_MASK    (0x7 << GPADC_TEST_SEL_SHIFT)
+#define GPADC_PGA2_GAIN_SHIFT  (22U)
+#define GPADC_PGA2_GAIN_MASK   (0x7 << GPADC_PGA2_GAIN_SHIFT)
+#define GPADC_PGA1_GAIN_SHIFT  (25U)
+#define GPADC_PGA1_GAIN_MASK   (0x7 << GPADC_PGA1_GAIN_SHIFT)
+#define GPADC_DLY_SEL_SHIFT    (28U)
+#define GPADC_DLY_SEL_MASK     (0x7 << GPADC_DLY_SEL_SHIFT)
+#define GPADC_TSVBE_LOW        (1 << 31U)
+
 /* GPADC_SCAN_n */
 
 #define GPADC_SCAN_POS_SHIFT(n) (5 * (n % 6))
