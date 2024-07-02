@@ -56,26 +56,26 @@
  ****************************************************************************/
 
 enum bl808_gpadc_channel_e
-{
-  GPADC_CH0,
-  GPADC_CH1,
-  GPADC_CH2,
-  GPADC_CH3,
-  GPADC_CH4,
-  GPADC_CH5,
-  GPADC_CH6,
-  GPADC_CH7,
-  GPADC_CH8,
-  GPADC_CH9,
-  GPADC_CH10,
-  GPADC_CH11,
-  GPADC_CH_DAC_OUTA,
-  GPADC_CH_DAC_OUTB,
-  GPADC_CH_TSEN,
-  GPADC_CH_VREF = 16,
-  GPADC_CH_HALF_VBAT = 18,
-  GPADC_CH_GND = 23
-};
+  {
+    GPADC_CH0,
+    GPADC_CH1,
+    GPADC_CH2,
+    GPADC_CH3,
+    GPADC_CH4,
+    GPADC_CH5,
+    GPADC_CH6,
+    GPADC_CH7,
+    GPADC_CH8,
+    GPADC_CH9,
+    GPADC_CH10,
+    GPADC_CH11,
+    GPADC_CH_DAC_OUTA,
+    GPADC_CH_DAC_OUTB,
+    GPADC_CH_TSEN,
+    GPADC_CH_VREF = 16,
+    GPADC_CH_HALF_VBAT = 18,
+    GPADC_CH_GND = 23
+  };
 
 struct bl808_gpadc_s
 {
@@ -107,39 +107,39 @@ static int bl808_gpadc_ioctl(struct adc_dev_s *dev,
  ****************************************************************************/
 
 static struct bl808_gpadc_s gpadc_priv =
-{
-  .callback = NULL,
-
-  .enabled_channels =
   {
-    GPADC_CH_VREF,
-    GPADC_CH_TSEN,
-    GPADC_CH_HALF_VBAT,
-    GPADC_CH_GND,
-    GPADC_CH4,
-    GPADC_CH5,
-    GPADC_CH6,
-    GPADC_CH7,
-    GPADC_CH8,
-    GPADC_CH9,
-    GPADC_CH10,
-    GPADC_CH11,
-  },
+    .callback = NULL,
 
-  /* nchannels should be the length of the array above */
-  
-  .nchannels = 12
-};
-  
+    .enabled_channels =
+    {
+      GPADC_CH_VREF,
+      GPADC_CH_TSEN,
+      GPADC_CH_HALF_VBAT,
+      GPADC_CH_GND,
+      GPADC_CH4,
+      GPADC_CH5,
+      GPADC_CH6,
+      GPADC_CH7,
+      GPADC_CH8,
+      GPADC_CH9,
+      GPADC_CH10,
+      GPADC_CH11,
+    },
+
+    /* nchannels should be the length of the array above */
+
+    .nchannels = 12
+  };
+
 static struct adc_ops_s gpadc_ops =
-{
-  .ao_bind = bl808_gpadc_bind,
-  .ao_reset = bl808_gpadc_reset,
-  .ao_setup = bl808_gpadc_setup,
-  .ao_shutdown = bl808_gpadc_shutdown,
-  .ao_rxint = bl808_gpadc_rxint,
-  .ao_ioctl = bl808_gpadc_ioctl
-};
+  {
+    .ao_bind = bl808_gpadc_bind,
+    .ao_reset = bl808_gpadc_reset,
+    .ao_setup = bl808_gpadc_setup,
+    .ao_shutdown = bl808_gpadc_shutdown,
+    .ao_rxint = bl808_gpadc_rxint,
+    .ao_ioctl = bl808_gpadc_ioctl
+  };
 
 uint8_t bl808_gpadc_get_count()
 {
@@ -161,26 +161,26 @@ static int __gpadc_interrupt(int irq, void *context, void *arg)
       up_putc('0' + count);
 
       while (count != 0)
-	{
-	  uint32_t result = getreg32(BL808_GPADC_DMA_RDATA);
-	  uint32_t channel = (result & (0x1f << 21)) >> 21;
-	  uint32_t adc_val = result & 0xffff;
+        {
+          uint32_t result = getreg32(BL808_GPADC_DMA_RDATA);
+          uint32_t channel = (result & (0x1f << 21)) >> 21;
+          uint32_t adc_val = result & 0xffff;
 
-	  int ret = priv->callback->au_receive(dev, channel, adc_val);
-	  if (ret)
-	    {
-	      up_putc('z');
-	    }
+          int ret = priv->callback->au_receive(dev, channel, adc_val);
+          if (ret)
+            {
+              up_putc('z');
+            }
 
-	  count = bl808_gpadc_get_count();
-	  up_putc('0' + count);
-	}
+          count = bl808_gpadc_get_count();
+          up_putc('0' + count);
+        }
 
       modifyreg32(BL808_GPADC_CONFIG, 0,
-	      GPADC_FIFO_CLR);
-      
+                  GPADC_FIFO_CLR);
+
       modifyreg32(BL808_GPADC_CONFIG, 0,
-		  GPADC_RDY_CLR);
+                  GPADC_RDY_CLR);
 
       return OK;
     }
@@ -203,12 +203,12 @@ static void bl808_gpadc_reset(struct adc_dev_s *dev)
   modifyreg32(BL808_GPADC_CMD, 0, GPADC_SOFT_RST);
 
   /*
-  for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 10; i++)
     {
-      asm("nop");
+    asm("nop");
     }
   */
-  
+
   modifyreg32(BL808_GPADC_CMD, GPADC_SOFT_RST, 0);
 }
 
@@ -216,22 +216,22 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
 {
   up_putc('s');
   struct bl808_gpadc_s *priv = dev->ad_priv;
-  
+
   /* The setup process below is mostly taken from bouffalo_sdk */
-  
+
   modifyreg32(BL808_GPADC_CMD, GPADC_GLOBAL_EN, 0);
 
   /* Soft reset */
-  
+
   modifyreg32(BL808_GPADC_CMD, 0, GPADC_SOFT_RST);
 
   /*
-  for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 10; i++)
     {
-      asm("nop");
+    asm("nop");
     }
-  */  
-  
+  */
+
   modifyreg32(BL808_GPADC_CMD, GPADC_SOFT_RST, 0);
 
   modifyreg32(BL808_GPADC_CONFIG1, GPADC_CONT_CONV_EN,
@@ -241,63 +241,63 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
               | GPADC_CLK_ANA_INV);
 
   modifyreg32(BL808_GPADC_CONFIG2, 0,
-	      (2 << GPADC_DLY_SEL_SHIFT)
-	      | GPADC_VBAT_EN
-	      | GPADC_TS_EN);
+              (2 << GPADC_DLY_SEL_SHIFT)
+              | GPADC_VBAT_EN
+              | GPADC_TS_EN);
 
   /* Use GND as negative channel for now */
-  
+
   modifyreg32(BL808_GPADC_CMD, 0, GPADC_NEG_GND);
 
   /* Clear all interrupts and masked unused ones */
 
   modifyreg32(BL808_GPADC_CONFIG, 0,
-	      GPADC_RDY_CLR
-	      | GPADC_FIFO_OVERRUN_CLR
-	      | GPADC_FIFO_UNDERRUN_CLR
-	      | GPADC_FIFO_OVERRUN_MASK
-	      | GPADC_FIFO_UNDERRUN_MASK);
+              GPADC_RDY_CLR
+              | GPADC_FIFO_OVERRUN_CLR
+              | GPADC_FIFO_UNDERRUN_CLR
+              | GPADC_FIFO_OVERRUN_MASK
+              | GPADC_FIFO_UNDERRUN_MASK);
 
   modifyreg32(BL808_GPADC_ISR, 0,
-	      GPADC_NEG_SATUR_CLR
-	      | GPADC_POS_SATUR_CLR
-	      | GPADC_NEG_SATUR_MASK
-	      | GPADC_POS_SATUR_MASK);
+              GPADC_NEG_SATUR_CLR
+              | GPADC_POS_SATUR_CLR
+              | GPADC_NEG_SATUR_MASK
+              | GPADC_POS_SATUR_MASK);
 
   modifyreg32(BL808_GPADC_CONFIG,
-	      GPADC_RDY_CLR, 0);
+              GPADC_RDY_CLR, 0);
 
   /* Set scan channels */
-  
+
   modifyreg32(BL808_GPADC_SCAN_POS1,
-	      0xffffffff, 0);
+              0xffffffff, 0);
   modifyreg32(BL808_GPADC_SCAN_POS2,
-	      0xffffffff, 0);
-  
+              0xffffffff, 0);
+
   for (int channel_idx = 0;
        channel_idx < priv->nchannels;
        channel_idx++)
     {
-      
+
       if (channel_idx < 6)
-	{
-	  modifyreg32(BL808_GPADC_SCAN_POS1, 0,
-		      (priv->enabled_channels[channel_idx]
-		       << GPADC_SCAN_SHIFT(channel_idx)));
-	}
+        {
+          modifyreg32(BL808_GPADC_SCAN_POS1, 0,
+                      (priv->enabled_channels[channel_idx]
+                       << GPADC_SCAN_SHIFT(channel_idx)));
+        }
       else
-	{
-	  modifyreg32(BL808_GPADC_SCAN_POS2, 0,
-		      (priv->enabled_channels[channel_idx]
-		       << GPADC_SCAN_SHIFT(channel_idx)));
-	}
+        {
+          modifyreg32(BL808_GPADC_SCAN_POS2, 0,
+                      (priv->enabled_channels[channel_idx]
+                       << GPADC_SCAN_SHIFT(channel_idx)));
+        }
     }
-  
+
   modifyreg32(BL808_GPADC_CONFIG1, 0,
-	      ((priv->nchannels - 1) << GPADC_SCAN_LENGTH_SHIFT));
+              ((priv->nchannels - 1) << GPADC_SCAN_LENGTH_SHIFT));
 
   modifyreg32(BL808_GPADC_CONFIG, 0,
-	      GPADC_FIFO_CLR);
+              GPADC_FIFO_CLR);
 
   modifyreg32(BL808_GPADC_CMD, 0, GPADC_GLOBAL_EN);
 
@@ -322,14 +322,14 @@ static void bl808_gpadc_rxint(struct adc_dev_s *dev,
       up_putc('r');
 
       /*
-      for (;;) {
-	uint32_t status = getreg32(BL808_GPADC_CONFIG);
-	uint32_t count = (status & GPADC_FIFO_DATA_COUNT_MASK) >> GPADC_FIFO_DATA_COUNT_SHIFT;
-	
-	if (count) {
-	  printf("%d\n", count);
-	}
-      }
+        for (;;) {
+        uint32_t status = getreg32(BL808_GPADC_CONFIG);
+        uint32_t count = (status & GPADC_FIFO_DATA_COUNT_MASK) >> GPADC_FIFO_DATA_COUNT_SHIFT;
+
+        if (count) {
+        printf("%d\n", count);
+        }
+        }
       */
     }
   else
@@ -360,7 +360,7 @@ static int bl808_gpadc_ioctl(struct adc_dev_s *dev,
 
     case ANIOC_RESET_FIFO:
       modifyreg32(BL808_GPADC_CONFIG, 0,
-	      GPADC_FIFO_CLR);
+                  GPADC_FIFO_CLR);
       ret = OK;
       break;
 
@@ -369,9 +369,9 @@ static int bl808_gpadc_ioctl(struct adc_dev_s *dev,
       break;
 
     default:
-      
+
       /* Other commands not implemented */
-      
+
       ret = -ENOTTY;
       break;
     }
@@ -389,7 +389,7 @@ int bl808_gpadc_init(void)
   struct adc_dev_s *dev = kmm_zalloc(sizeof(struct adc_dev_s));
   dev->ad_ops  = &gpadc_ops;
   dev->ad_priv = &gpadc_priv;
-  
+
   int ret = adc_register("/dev/gpadc", dev);
 
   return ret;
