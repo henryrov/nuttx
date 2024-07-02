@@ -105,8 +105,6 @@ static struct bl808_gpadc_s gpadc_priv =
 {
   .callback = NULL,
 
-  /* channel_enable determines which channels will be part of the scan */
-
   .enabled_channels =
   {
     GPADC_CH_VREF,
@@ -123,6 +121,8 @@ static struct bl808_gpadc_s gpadc_priv =
     GPADC_CH11,
   },
 
+  /* nchannels should be the length of the array above */
+  
   .nchannels = 12
 };
   
@@ -171,12 +171,14 @@ static int __gpadc_interrupt(int irq, void *context, void *arg)
       
       modifyreg32(BL808_GPADC_CONFIG, 0,
 		  GPADC_RDY_CLR);
+
+      return OK;
     }
   else
     {
       up_putc('x');
+      return -EIO;
     }
-  return OK;
 }
 
 static int bl808_gpadc_bind(struct adc_dev_s *dev,
@@ -208,8 +210,6 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
   
   /* The setup process below is mostly taken from bouffalo_sdk */
   
-  /* Disable and reenable ADC */
-  
   modifyreg32(BL808_GPADC_CMD, GPADC_GLOBAL_EN, 0);
 
   /* Soft reset */
@@ -221,8 +221,7 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
     {
       asm("nop");
     }
-  */
-  
+  */  
   
   modifyreg32(BL808_GPADC_CMD, GPADC_SOFT_RST, 0);
 
@@ -241,15 +240,23 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
   
   modifyreg32(BL808_GPADC_CMD, 0, GPADC_NEG_GND);
 
+  /* Clear all interrupts and masked unused ones */
+
   modifyreg32(BL808_GPADC_CONFIG, 0,
 	      GPADC_RDY_CLR
 	      | GPADC_FIFO_OVERRUN_CLR
-	      | GPADC_FIFO_UNDERRUN_CLR);
+	      | GPADC_FIFO_UNDERRUN_CLR
+	      | GPADC_FIFO_OVERRUN_MASK
+	      | GPADC_FIFO_UNDERRUN_MASK);
+
+  modifyreg32(BL808_GPADC_ISR, 0,
+	      GPADC_NEG_SATUR_CLR
+	      | GPADC_POS_SATUR_CLR
+	      | GPADC_NEG_SATUR_MASK
+	      | GPADC_POS_SATUR_MASK);
 
   modifyreg32(BL808_GPADC_CONFIG,
-	      GPADC_RDY_CLR
-	      | GPADC_FIFO_OVERRUN_CLR
-	      | GPADC_FIFO_UNDERRUN_CLR, 0);
+	      GPADC_RDY_CLR, 0);
 
   /* Set scan channels */
   
@@ -267,13 +274,13 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
 	{
 	  modifyreg32(BL808_GPADC_SCAN_POS1, 0,
 		      (priv->enabled_channels[channel_idx]
-		       << GPADC_SCAN_POS_SHIFT(channel_idx)));
+		       << GPADC_SCAN_SHIFT(channel_idx)));
 	}
       else
 	{
 	  modifyreg32(BL808_GPADC_SCAN_POS2, 0,
 		      (priv->enabled_channels[channel_idx]
-		       << GPADC_SCAN_POS_SHIFT(channel_idx)));
+		       << GPADC_SCAN_SHIFT(channel_idx)));
 	}
     }
   
@@ -290,6 +297,7 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
 
 static void bl808_gpadc_shutdown(struct adc_dev_s *dev)
 {
+  modifyreg32(BL808_GPADC_CMD, GPADC_GLOBAL_EN, 0);
 }
 
 static void bl808_gpadc_rxint(struct adc_dev_s *dev,
@@ -299,8 +307,6 @@ static void bl808_gpadc_rxint(struct adc_dev_s *dev,
     {
       irq_attach(BL808_IRQ_GPADC, __gpadc_interrupt, (void *)dev);
       up_enable_irq(BL808_IRQ_GPADC);
-
-      /* Clear and then set bit to start conversion */
 
       modifyreg32(BL808_GPADC_CMD, 0, GPADC_CONV_START);
 
@@ -321,8 +327,6 @@ static void bl808_gpadc_rxint(struct adc_dev_s *dev,
     {
       up_disable_irq(BL808_IRQ_GPADC);
       irq_detach(BL808_IRQ_GPADC);
-
-      /* Stop conversion */
 
       modifyreg32(BL808_GPADC_CMD, GPADC_CONV_START, 0);
     }

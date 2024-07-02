@@ -178,7 +178,16 @@
 
 /* GPADC_SCAN_n */
 
-#define GPADC_SCAN_POS_SHIFT(n) (5 * (n % 6))
-#define GPADC_SCAN_POS_MASK(n) (0x1f << GPADC_SCAN_POS_SHIFT(n))
+#define GPADC_SCAN_SHIFT(n) (5 * (n % 6))
+#define GPADC_SCAN_MASK(n) (0x1f << GPADC_SCAN_POS_SHIFT(n))
+
+/* GPADC_ISR */
+
+#define GPADC_NEG_SATUR      (1 << 0U)
+#define GPADC_POS_SATUR      (1 << 1U)
+#define GPADC_NEG_SATUR_CLR  (1 << 4U)
+#define GPADC_POS_SATUR_CLR  (1 << 5U)
+#define GPADC_NEG_SATUR_MASK (1 << 8U)
+#define GPADC_POS_SATUR_MASK (1 << 9U)
 
 #endif /* __ARCH_RISCV_SRC_BL808_HARDWARE_BL808_GPADC_H */
