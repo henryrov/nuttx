@@ -37,6 +37,7 @@
 #include <nuttx/irq.h>
 #include <nuttx/fs/ioctl.h>
 #include <nuttx/analog/adc.h>
+#include <nuttx/analog/ioctl.h>
 
 #include "hardware/bl808_gpadc.h"
 #include "riscv_internal.h"
@@ -87,6 +88,10 @@ struct bl808_gpadc_s
  * Private Function Prototypes
  ****************************************************************************/
 
+uint8_t bl808_gpadc_get_count(void);
+
+/* Character driver methods */
+
 static int bl808_gpadc_bind(struct adc_dev_s *dev,
                             const struct adc_callback_s *callback);
 static void bl808_gpadc_reset(struct adc_dev_s *dev);
@@ -136,6 +141,14 @@ static struct adc_ops_s gpadc_ops =
   .ao_ioctl = bl808_gpadc_ioctl
 };
 
+uint8_t bl808_gpadc_get_count()
+{
+  uint32_t status = getreg32(BL808_GPADC_CONFIG);
+  uint8_t count = (status & GPADC_FIFO_DATA_COUNT_MASK)
+    >> GPADC_FIFO_DATA_COUNT_SHIFT;
+  return count;
+}
+
 static int __gpadc_interrupt(int irq, void *context, void *arg)
 {
   struct adc_dev_s *dev = (struct adc_dev_s *)arg;
@@ -144,8 +157,7 @@ static int __gpadc_interrupt(int irq, void *context, void *arg)
 
   if (status & GPADC_RDY)
     {
-      uint8_t count = (status & GPADC_FIFO_DATA_COUNT_MASK)
-	>> GPADC_FIFO_DATA_COUNT_SHIFT;
+      uint8_t count = bl808_gpadc_get_count();
       up_putc('0' + count);
 
       while (count != 0)
@@ -160,9 +172,7 @@ static int __gpadc_interrupt(int irq, void *context, void *arg)
 	      up_putc('z');
 	    }
 
-	  status = getreg32(BL808_GPADC_CONFIG);
-	  count = (status & GPADC_FIFO_DATA_COUNT_MASK)
-	    >> GPADC_FIFO_DATA_COUNT_SHIFT;
+	  count = bl808_gpadc_get_count();
 	  up_putc('0' + count);
 	}
 
@@ -176,7 +186,6 @@ static int __gpadc_interrupt(int irq, void *context, void *arg)
     }
   else
     {
-      up_putc('x');
       return -EIO;
     }
 }
@@ -335,6 +344,39 @@ static void bl808_gpadc_rxint(struct adc_dev_s *dev,
 static int bl808_gpadc_ioctl(struct adc_dev_s *dev,
                              int cmd, unsigned long arg)
 {
+  int ret;
+  struct bl808_gpadc_s *priv = (struct bl808_gpadc_s *)dev->ad_priv;
+
+  switch(cmd)
+    {
+    case ANIOC_TRIGGER:
+      modifyreg32(BL808_GPADC_CMD, 0, GPADC_CONV_START);
+      ret = OK;
+      break;
+
+    case ANIOC_GET_NCHANNELS:
+      ret = priv->nchannels;
+      break;
+
+    case ANIOC_RESET_FIFO:
+      modifyreg32(BL808_GPADC_CONFIG, 0,
+	      GPADC_FIFO_CLR);
+      ret = OK;
+      break;
+
+    case ANIOC_SAMPLES_ON_READ:
+      ret = bl808_gpadc_get_count();
+      break;
+
+    default:
+      
+      /* Other commands not implemented */
+      
+      ret = -ENOTTY;
+      break;
+    }
+
+  return ret;
 }
 
 /****************************************************************************
