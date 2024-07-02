@@ -201,14 +201,6 @@ static int bl808_gpadc_bind(struct adc_dev_s *dev,
 static void bl808_gpadc_reset(struct adc_dev_s *dev)
 {
   modifyreg32(BL808_GPADC_CMD, 0, GPADC_SOFT_RST);
-
-  /*
-    for (int i = 0; i < 10; i++)
-    {
-    asm("nop");
-    }
-  */
-
   modifyreg32(BL808_GPADC_CMD, GPADC_SOFT_RST, 0);
 }
 
@@ -217,20 +209,13 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
   up_putc('s');
   struct bl808_gpadc_s *priv = dev->ad_priv;
 
-  /* The setup process below is mostly taken from bouffalo_sdk */
+  /* This setup process is mostly taken from bouffalo_sdk */
 
   modifyreg32(BL808_GPADC_CMD, GPADC_GLOBAL_EN, 0);
 
   /* Soft reset */
 
   modifyreg32(BL808_GPADC_CMD, 0, GPADC_SOFT_RST);
-
-  /*
-    for (int i = 0; i < 10; i++)
-    {
-    asm("nop");
-    }
-  */
 
   modifyreg32(BL808_GPADC_CMD, GPADC_SOFT_RST, 0);
 
@@ -278,7 +263,6 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
        channel_idx < priv->nchannels;
        channel_idx++)
     {
-
       if (channel_idx < 6)
         {
           modifyreg32(BL808_GPADC_SCAN_POS1, 0,
@@ -320,17 +304,6 @@ static void bl808_gpadc_rxint(struct adc_dev_s *dev,
       modifyreg32(BL808_GPADC_CMD, 0, GPADC_CONV_START);
 
       up_putc('r');
-
-      /*
-        for (;;) {
-        uint32_t status = getreg32(BL808_GPADC_CONFIG);
-        uint32_t count = (status & GPADC_FIFO_DATA_COUNT_MASK) >> GPADC_FIFO_DATA_COUNT_SHIFT;
-
-        if (count) {
-        printf("%d\n", count);
-        }
-        }
-      */
     }
   else
     {
@@ -347,7 +320,7 @@ static int bl808_gpadc_ioctl(struct adc_dev_s *dev,
   int ret;
   struct bl808_gpadc_s *priv = (struct bl808_gpadc_s *)dev->ad_priv;
 
-  switch(cmd)
+  switch (cmd)
     {
     case ANIOC_TRIGGER:
       modifyreg32(BL808_GPADC_CMD, 0, GPADC_CONV_START);
@@ -369,7 +342,6 @@ static int bl808_gpadc_ioctl(struct adc_dev_s *dev,
       break;
 
     default:
-
       /* Other commands not implemented */
 
       ret = -ENOTTY;
