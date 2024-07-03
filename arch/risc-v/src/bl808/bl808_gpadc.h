@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/risc-v/src/bl808/bl808_adc.h
+ * arch/risc-v/src/bl808/bl808_gpadc.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -21,10 +21,13 @@
 #ifndef __ARCH_RISC_V_SRC_BL808_BL808_GPADC_H
 #define __ARCH_RISC_V_SRC_BL808_BL808_GPADC_H
 
+#ifdef CONFIG_BL808_GPADC
+
 /****************************************************************************
  * Public Functions Prototypes
  ****************************************************************************/
 
 int bl808_gpadc_init(void);
 
+#endif /* CONFIG_BL808_GPADC */
 #endif /* __ARCH_RISC_V_SRC_BL808_BL808_GPADC_H */

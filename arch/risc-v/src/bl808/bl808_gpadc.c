@@ -44,6 +44,8 @@
 #include "chip.h"
 #include "bl808_gpadc.h"
 
+#ifdef CONFIG_BL808_GPADC
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -141,6 +143,18 @@ static struct adc_ops_s gpadc_ops =
     .ao_ioctl = bl808_gpadc_ioctl
   };
 
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: bl808_gpadc_get_count
+ *
+ * Description:
+ *   Gets the number of items available in the GPADC FIFO.
+ *
+ ****************************************************************************/
+
 uint8_t bl808_gpadc_get_count()
 {
   uint32_t status = getreg32(BL808_GPADC_CONFIG);
@@ -148,6 +162,15 @@ uint8_t bl808_gpadc_get_count()
     >> GPADC_FIFO_DATA_COUNT_SHIFT;
   return count;
 }
+
+/****************************************************************************
+ * Name: gpadc_interrupt
+ *
+ * Description:
+ *   GPADC interrupt handler. Passes ADC readings to upper half driver,
+ *   then clears the FIFO.
+ *
+ ****************************************************************************/
 
 static int __gpadc_interrupt(int irq, void *context, void *arg)
 {
@@ -190,6 +213,15 @@ static int __gpadc_interrupt(int irq, void *context, void *arg)
     }
 }
 
+/****************************************************************************
+ * Name: bl808_gpadc_bind
+ *
+ * Description:
+ *   Called when the driver is registered. Binds upper half callbacks
+ *   to the private data structure.
+ *   
+ ****************************************************************************/
+
 static int bl808_gpadc_bind(struct adc_dev_s *dev,
                             const struct adc_callback_s *callback)
 {
@@ -198,11 +230,29 @@ static int bl808_gpadc_bind(struct adc_dev_s *dev,
   return OK;
 }
 
+/****************************************************************************
+ * Name: bl808_gpadc_reset
+ *
+ * Description:
+ *   Called as part of the device registration process. Resets the
+ *   GPADC hardware block.
+ *
+ ****************************************************************************/
+
 static void bl808_gpadc_reset(struct adc_dev_s *dev)
 {
   modifyreg32(BL808_GPADC_CMD, 0, GPADC_SOFT_RST);
   modifyreg32(BL808_GPADC_CMD, GPADC_SOFT_RST, 0);
 }
+
+/****************************************************************************
+ * Name: bl808_gpadc_setup
+ *
+ * Description:
+ *   Called when the driver is first opened. Sets registers to allow
+ *   scanning functionality, and sets the scan order registers.
+ *
+ ****************************************************************************/
 
 static int bl808_gpadc_setup(struct adc_dev_s *dev)
 {
@@ -288,10 +338,26 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
   return OK;
 }
 
+/****************************************************************************
+ * Name: bl808_gpadc_shutdown
+ *
+ * Description:
+ *   Disables the GPADC hardware block.
+ *
+ ****************************************************************************/
+
 static void bl808_gpadc_shutdown(struct adc_dev_s *dev)
 {
   modifyreg32(BL808_GPADC_CMD, GPADC_GLOBAL_EN, 0);
 }
+
+/****************************************************************************
+ * Name: bl808_gpadc_rxint
+ *
+ * Description:
+ *   Enables or disables the conversion finished interrupt.
+ *
+ ****************************************************************************/
 
 static void bl808_gpadc_rxint(struct adc_dev_s *dev,
                               bool enable)
@@ -302,8 +368,6 @@ static void bl808_gpadc_rxint(struct adc_dev_s *dev,
       up_enable_irq(BL808_IRQ_GPADC);
 
       modifyreg32(BL808_GPADC_CMD, 0, GPADC_CONV_START);
-
-      up_putc('r');
     }
   else
     {
@@ -313,6 +377,14 @@ static void bl808_gpadc_rxint(struct adc_dev_s *dev,
       modifyreg32(BL808_GPADC_CMD, GPADC_CONV_START, 0);
     }
 }
+
+/****************************************************************************
+ * Name: bl808_gpadc_ioctl
+ *
+ * Description:
+ *   All ioctl calls will be routed through this method.
+ *
+ ****************************************************************************/
 
 static int bl808_gpadc_ioctl(struct adc_dev_s *dev,
                              int cmd, unsigned long arg)
@@ -357,7 +429,6 @@ static int bl808_gpadc_ioctl(struct adc_dev_s *dev,
 
 int bl808_gpadc_init(void)
 {
-  up_putc('a');
   struct adc_dev_s *dev = kmm_zalloc(sizeof(struct adc_dev_s));
   dev->ad_ops  = &gpadc_ops;
   dev->ad_priv = &gpadc_priv;
@@ -366,3 +437,5 @@ int bl808_gpadc_init(void)
 
   return ret;
 }
+
+#endif /* if CONFIG_BL808_GPADC */

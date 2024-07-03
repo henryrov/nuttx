@@ -7,6 +7,26 @@ comment "BL808 Configuration Options"
 
 menu "BL808 Peripheral Support"
 
+config BL808_GPADC
+	bool "GPADC"
+	default n
+
+choice BL808_GPADC_RES
+	prompt "GPADC Resolution"
+	default BL808_GPADC_RES_12
+	depends on BL808_GPADC
+
+config BL808_GPADC_RES_12
+	bool "12 bits"
+
+config BL808_GPADC_RES_14
+	bool "14 bits"
+
+config BL808_GPADC_RES_16
+	bool "16 bits"
+
+endchoice
+
 config BL808_UART0
 	bool "UART 0"
 	default n
