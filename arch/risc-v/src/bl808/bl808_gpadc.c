@@ -126,23 +126,21 @@ static struct bl808_gpadc_s gpadc_priv =
 
     .enabled_channels =
     {
-      GPADC_CH_VREF,
-      GPADC_CH_TSEN,
-      GPADC_CH_HALF_VBAT,
-      GPADC_CH_GND,
-      GPADC_CH4,
-      GPADC_CH5,
-      GPADC_CH6,
-      GPADC_CH7,
-      GPADC_CH8,
-      GPADC_CH9,
-      GPADC_CH10,
-      GPADC_CH11,
+      CONFIG_BL808_GPADC_SCAN_ORD0,
+      CONFIG_BL808_GPADC_SCAN_ORD1,
+      CONFIG_BL808_GPADC_SCAN_ORD2,
+      CONFIG_BL808_GPADC_SCAN_ORD3,
+      CONFIG_BL808_GPADC_SCAN_ORD4,
+      CONFIG_BL808_GPADC_SCAN_ORD5,
+      CONFIG_BL808_GPADC_SCAN_ORD6,
+      CONFIG_BL808_GPADC_SCAN_ORD7,
+      CONFIG_BL808_GPADC_SCAN_ORD8,
+      CONFIG_BL808_GPADC_SCAN_ORD9,
+      CONFIG_BL808_GPADC_SCAN_ORD10,
+      CONFIG_BL808_GPADC_SCAN_ORD11
     },
 
-    /* nchannels should be the length of the array above */
-
-    .nchannels = 12,
+    .nchannels = CONFIG_BL808_GPADC_NCHANNELS,
 
 #ifdef CONFIG_BL808_GPADC_RES_12
     .resolution = GPADC_12_BIT,
@@ -204,7 +202,6 @@ static int __gpadc_interrupt(int irq, void *context, void *arg)
 	  && (priv->callback->au_receive != NULL))
 	{
 	  uint8_t count = bl808_gpadc_get_count();
-	  up_putc('0' + count);
 
 	  while (count != 0)
 	    {
@@ -216,13 +213,11 @@ static int __gpadc_interrupt(int irq, void *context, void *arg)
 	      int receive_ret = priv->callback->au_receive(dev, channel, adc_val);
 	      if (receive_ret)
 		{
-		  up_putc('z');
 		  aerr("ADC driver upper half receive error");
 		  return -EIO;
 		}
 
 	      count = bl808_gpadc_get_count();
-	      up_putc('0' + count);
 	    }
 
 	  modifyreg32(BL808_GPADC_CONFIG, 0,
@@ -285,7 +280,6 @@ static void bl808_gpadc_reset(struct adc_dev_s *dev)
 
 static int bl808_gpadc_setup(struct adc_dev_s *dev)
 {
-  up_putc('s');
   struct bl808_gpadc_s *priv = dev->ad_priv;
 
   /* This setup process is mostly taken from bouffalo_sdk */
@@ -468,4 +462,4 @@ int bl808_gpadc_init(void)
   return ret;
 }
 
-#endif /* if CONFIG_BL808_GPADC */
+#endif /* CONFIG_BL808_GPADC */
