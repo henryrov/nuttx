@@ -197,43 +197,45 @@ static int __gpadc_interrupt(int irq, void *context, void *arg)
   uint32_t status = getreg32(BL808_GPADC_CONFIG);
 
   if (status & GPADC_RDY)
-    {      
+    {
       if ((priv->callback != NULL)
-	  && (priv->callback->au_receive != NULL))
-	{
-	  uint8_t count = bl808_gpadc_get_count();
+          && (priv->callback->au_receive != NULL))
+        {
+          uint8_t count = bl808_gpadc_get_count();
 
-	  while (count != 0)
-	    {
-	      uint32_t result = getreg32(BL808_GPADC_DMA_RDATA);
-	      uint32_t channel = (result & GPADC_RESULT_POS_CHN_MASK)
-		>> GPADC_RESULT_POS_CHN_SHIFT;
-	      uint32_t adc_val = result & GPADC_RESULT_RAW_VAL_MASK;
+          while (count != 0)
+            {
+              uint32_t result = getreg32(BL808_GPADC_DMA_RDATA);
+              uint32_t channel = (result & GPADC_RESULT_POS_CHN_MASK)
+                >> GPADC_RESULT_POS_CHN_SHIFT;
+              uint32_t adc_val = result & GPADC_RESULT_RAW_VAL_MASK;
 
-	      int receive_ret = priv->callback->au_receive(dev, channel, adc_val);
-	      if (receive_ret)
-		{
-		  aerr("ADC driver upper half receive error");
-		  return -EIO;
-		}
+              int receive_ret =
+                priv->callback->au_receive(dev, channel, adc_val);
+              if (receive_ret)
+                {
+                  aerr("ADC driver upper half receive error");
+                  return -EIO;
+                }
 
-	      count = bl808_gpadc_get_count();
-	    }
+              count = bl808_gpadc_get_count();
+            }
 
-	  modifyreg32(BL808_GPADC_CONFIG, 0,
-	  	      GPADC_FIFO_CLR);
+          modifyreg32(BL808_GPADC_CONFIG, 0,
+                      GPADC_FIFO_CLR);
 
-	  modifyreg32(BL808_GPADC_CONFIG, 0,
-	  	      GPADC_RDY_CLR);
+          modifyreg32(BL808_GPADC_CONFIG, 0,
+                      GPADC_RDY_CLR);
 
-	  modifyreg32(BL808_GPADC_CONFIG,
-	  	      GPADC_RDY_CLR, 0);
+          modifyreg32(BL808_GPADC_CONFIG,
+                      GPADC_RDY_CLR, 0);
 
-	  return OK;
-	}
+          return OK;
+        }
     }
+
   /* If we get here, there was an error */
-  
+
   return -EIO;
 }
 
@@ -243,7 +245,7 @@ static int __gpadc_interrupt(int irq, void *context, void *arg)
  * Description:
  *   Called when the driver is registered. Binds upper half callbacks
  *   to the private data structure.
- *   
+ *
  ****************************************************************************/
 
 static int bl808_gpadc_bind(struct adc_dev_s *dev,
@@ -297,7 +299,7 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
               | (1 << GPADC_V11_SEL_SHIFT)
               | GPADC_SCAN_EN
               | GPADC_CLK_ANA_INV
-	      | (priv->resolution << GPADC_RES_SEL_SHIFT));
+              | (priv->resolution << GPADC_RES_SEL_SHIFT));
 
   modifyreg32(BL808_GPADC_CONFIG2, 0,
               (2 << GPADC_DLY_SEL_SHIFT)
@@ -315,7 +317,7 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
               | GPADC_FIFO_OVERRUN_CLR
               | GPADC_FIFO_UNDERRUN_CLR
               | GPADC_FIFO_OVERRUN_MASK
-              | GPADC_FIFO_UNDERRUN_MASK);      
+              | GPADC_FIFO_UNDERRUN_MASK);
 
   modifyreg32(BL808_GPADC_ISR, 0,
               GPADC_NEG_SATUR_CLR
@@ -419,29 +421,39 @@ static int bl808_gpadc_ioctl(struct adc_dev_s *dev,
   switch (cmd)
     {
     case ANIOC_TRIGGER:
-      modifyreg32(BL808_GPADC_CMD, 0, GPADC_CONV_START);
-      ret = OK;
-      break;
+      {
+        modifyreg32(BL808_GPADC_CMD, 0, GPADC_CONV_START);
+        ret = OK;
+        break;
+      }
 
     case ANIOC_GET_NCHANNELS:
-      ret = priv->nchannels;
-      break;
+      {
+        ret = priv->nchannels;
+        break;
+      }
 
     case ANIOC_RESET_FIFO:
-      modifyreg32(BL808_GPADC_CONFIG, 0,
-                  GPADC_FIFO_CLR);
-      ret = OK;
-      break;
+      {
+        modifyreg32(BL808_GPADC_CONFIG, 0,
+                    GPADC_FIFO_CLR);
+        ret = OK;
+        break;
+      }
 
     case ANIOC_SAMPLES_ON_READ:
-      ret = bl808_gpadc_get_count();
-      break;
+      {
+        ret = bl808_gpadc_get_count();
+        break;
+      }
 
     default:
-      /* Other commands not implemented */
+      {
+        /* Other commands not implemented */
 
-      ret = -ENOTTY;
-      break;
+        ret = -ENOTTY;
+        break;
+      }
     }
 
   return ret;

@@ -225,8 +225,6 @@ void bl808_start_s(int mhartid)
 
   /* Do board initialization */
 
-  //bl808_gpadc_init();
-
   showprogress('C');
 
   /* Setup page tables for kernel and enable MMU */

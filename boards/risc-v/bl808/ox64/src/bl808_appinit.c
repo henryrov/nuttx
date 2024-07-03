@@ -165,7 +165,7 @@ void board_late_initialize(void)
   /* Perform board-specific initialization */
 
 #ifdef CONFIG_BL808_GPADC
-  
+
   bl808_gpadc_init();
 
 #endif
