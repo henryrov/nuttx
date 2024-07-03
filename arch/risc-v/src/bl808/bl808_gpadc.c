@@ -79,11 +79,23 @@ enum bl808_gpadc_channel_e
     GPADC_CH_GND = 23
   };
 
+/* Values for resolution enum correspond to the register values
+ * for each option.
+ */
+
+enum bl808_gpadc_resolution_e
+  {
+    GPADC_12_BIT = 0,
+    GPADC_14_BIT = 1,
+    GPADC_16_BIT = 3
+  };
+
 struct bl808_gpadc_s
 {
   const struct adc_callback_s *callback;
   enum bl808_gpadc_channel_e enabled_channels[BL808_GPADC_SCAN_MAX_CHANNELS];
   uint8_t nchannels;
+  enum bl808_gpadc_resolution_e resolution;
 };
 
 /****************************************************************************
@@ -130,7 +142,15 @@ static struct bl808_gpadc_s gpadc_priv =
 
     /* nchannels should be the length of the array above */
 
-    .nchannels = 12
+    .nchannels = 12,
+
+#ifdef CONFIG_BL808_GPADC_RES_12
+    .resolution = GPADC_12_BIT,
+#elif defined(CONFIG_BL808_GPADC_RES_14)
+    .resolution = GPADC_14_BIT,
+#elif defined(CONFIG_BL808_GPADC_RES_16)
+    .resolution = GPADC_16_BIT,
+#endif
   };
 
 static struct adc_ops_s gpadc_ops =
@@ -179,38 +199,47 @@ static int __gpadc_interrupt(int irq, void *context, void *arg)
   uint32_t status = getreg32(BL808_GPADC_CONFIG);
 
   if (status & GPADC_RDY)
-    {
-      uint8_t count = bl808_gpadc_get_count();
-      up_putc('0' + count);
+    {      
+      if ((priv->callback != NULL)
+	  && (priv->callback->au_receive != NULL))
+	{
+	  uint8_t count = bl808_gpadc_get_count();
+	  up_putc('0' + count);
 
-      while (count != 0)
-        {
-          uint32_t result = getreg32(BL808_GPADC_DMA_RDATA);
-          uint32_t channel = (result & (0x1f << 21)) >> 21;
-          uint32_t adc_val = result & 0xffff;
+	  while (count != 0)
+	    {
+	      uint32_t result = getreg32(BL808_GPADC_DMA_RDATA);
+	      uint32_t channel = (result & GPADC_RESULT_POS_CHN_MASK)
+		>> GPADC_RESULT_POS_CHN_SHIFT;
+	      uint32_t adc_val = result & GPADC_RESULT_RAW_VAL_MASK;
 
-          int ret = priv->callback->au_receive(dev, channel, adc_val);
-          if (ret)
-            {
-              up_putc('z');
-            }
+	      int receive_ret = priv->callback->au_receive(dev, channel, adc_val);
+	      if (receive_ret)
+		{
+		  up_putc('z');
+		  aerr("ADC driver upper half receive error");
+		  return -EIO;
+		}
 
-          count = bl808_gpadc_get_count();
-          up_putc('0' + count);
-        }
+	      count = bl808_gpadc_get_count();
+	      up_putc('0' + count);
+	    }
 
-      modifyreg32(BL808_GPADC_CONFIG, 0,
-                  GPADC_FIFO_CLR);
+	  modifyreg32(BL808_GPADC_CONFIG, 0,
+	  	      GPADC_FIFO_CLR);
 
-      modifyreg32(BL808_GPADC_CONFIG, 0,
-                  GPADC_RDY_CLR);
+	  modifyreg32(BL808_GPADC_CONFIG, 0,
+	  	      GPADC_RDY_CLR);
 
-      return OK;
+	  modifyreg32(BL808_GPADC_CONFIG,
+	  	      GPADC_RDY_CLR, 0);
+
+	  return OK;
+	}
     }
-  else
-    {
-      return -EIO;
-    }
+  /* If we get here, there was an error */
+  
+  return -EIO;
 }
 
 /****************************************************************************
@@ -273,7 +302,8 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
               (2 << GPADC_V18_SEL_SHIFT)
               | (1 << GPADC_V11_SEL_SHIFT)
               | GPADC_SCAN_EN
-              | GPADC_CLK_ANA_INV);
+              | GPADC_CLK_ANA_INV
+	      | (priv->resolution << GPADC_RES_SEL_SHIFT));
 
   modifyreg32(BL808_GPADC_CONFIG2, 0,
               (2 << GPADC_DLY_SEL_SHIFT)
@@ -291,7 +321,7 @@ static int bl808_gpadc_setup(struct adc_dev_s *dev)
               | GPADC_FIFO_OVERRUN_CLR
               | GPADC_FIFO_UNDERRUN_CLR
               | GPADC_FIFO_OVERRUN_MASK
-              | GPADC_FIFO_UNDERRUN_MASK);
+              | GPADC_FIFO_UNDERRUN_MASK);      
 
   modifyreg32(BL808_GPADC_ISR, 0,
               GPADC_NEG_SATUR_CLR
