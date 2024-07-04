@@ -1,4 +1,4 @@
- /****************************************************************************
+/****************************************************************************
  * arch/risc-v/src/bl808/hardware/bl808_gpadc.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
