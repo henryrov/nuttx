@@ -116,6 +116,10 @@ struct bl808_spi_priv_s
 
   struct spi_dev_s spi_dev;
 
+  /* SPI block ID */
+
+  uint8_t idx;
+
   /* Port configuration */
 
   const struct bl808_spi_config_s *config;
@@ -185,13 +189,6 @@ static void bl808_spi_deinit(struct spi_dev_s *dev);
  * Private Data
  ****************************************************************************/
 
-#ifdef CONFIG_BL808_SPI0
-static const struct bl808_spi_config_s bl808_spi_config =
-{
-    .clk_freq = SPI_FREQ_DEFAULT,
-    .mode = SPIDEV_MODE0
-};
-
 static const struct spi_ops_s bl808_spi_ops =
 {
     .lock = bl808_spi_lock,
@@ -222,19 +219,49 @@ static const struct spi_ops_s bl808_spi_ops =
     .registercallback = NULL,
 };
 
-static struct bl808_spi_priv_s bl808_spi_priv =
+#ifdef CONFIG_BL808_SPI0
+static const struct bl808_spi_config_s bl808_spi0_config =
+{
+    .clk_freq = SPI_FREQ_DEFAULT,
+    .mode = SPIDEV_MODE0
+};
+
+static struct bl808_spi_priv_s bl808_spi0_priv =
 {
   .spi_dev =
   {
     .ops      = &bl808_spi_ops
   },
-  .config     = &bl808_spi_config,
+  .idx        = 0,
+  .config     = &bl808_spi0_config,
   .lock       = NXMUTEX_INITIALIZER,
   .sem_isr_tx = SEM_INITIALIZER(0),
   .sem_isr_rx = SEM_INITIALIZER(0),
 };
 
 #endif  /* CONFIG_BL808_SPI0 */
+
+#ifdef CONFIG_BL808_SPI1
+static const struct bl808_spi_config_s bl808_spi1_config =
+{
+    .clk_freq = SPI_FREQ_DEFAULT,
+    .mode = SPIDEV_MODE0
+};
+
+static struct bl808_spi_priv_s bl808_spi1_priv =
+{
+  .spi_dev =
+  {
+    .ops      = &bl808_spi_ops
+  },
+  .idx        = 1
+  .config     = &bl808_spi1_config,
+  .lock       = NXMUTEX_INITIALIZER,
+  .sem_isr_tx = SEM_INITIALIZER(0),
+  .sem_isr_rx = SEM_INITIALIZER(0),
+};
+
+#endif  /* CONFIG_BL808_SPI1 */
 
 /****************************************************************************
  * Private Functions
@@ -365,7 +392,7 @@ static void bl808_set_spi_clk(uint8_t enable, uint8_t div)
  *
  ****************************************************************************/
 
-static void bl808_clockconfig(struct spi_clock_cfg_s *clockcfg)
+static void bl808_clockconfig(struct spi_clock_cfg_s *clockcfg, uint8_t idx)
 {
   /* Configure length of data phase1/0 and start/stop condition */
 
@@ -475,6 +502,7 @@ static uint32_t bl808_spi_setfrequency(struct spi_dev_s *dev,
                                        uint32_t frequency)
 {
   struct bl808_spi_priv_s *priv = (struct bl808_spi_priv_s *)dev;
+  uint8_t idx = priv->idx;
   struct spi_clock_cfg_s clockcfg;
   size_t count;
   uint8_t ticks;
@@ -511,7 +539,7 @@ static uint32_t bl808_spi_setfrequency(struct spi_dev_s *dev,
   clockcfg.data_phase1_len = count;
   clockcfg.interval_len = count;
 
-  bl808_clockconfig(&clockcfg);
+  bl808_clockconfig(&clockcfg, idx);
 
   priv->frequency = frequency;
 
@@ -570,6 +598,7 @@ static void
 bl808_spi_setmode(struct spi_dev_s *dev, enum spi_mode_e mode)
 {
   struct bl808_spi_priv_s *priv = (struct bl808_spi_priv_s *)dev;
+  uint8_t idx = priv->idx;
 
   spiinfo("mode=%d\n", mode);
 
@@ -625,6 +654,7 @@ bl808_spi_setmode(struct spi_dev_s *dev, enum spi_mode_e mode)
 static void bl808_spi_setbits(struct spi_dev_s *dev, int nbits)
 {
   struct bl808_spi_priv_s *priv = (struct bl808_spi_priv_s *)dev;
+  uint8_t idx = priv->idx;
 
   spiinfo("nbits=%d\n", nbits);
 
@@ -796,6 +826,7 @@ static int bl808_spi_hwfeatures(struct spi_dev_s *dev,
 static uint32_t bl808_spi_poll_send(struct bl808_spi_priv_s *priv,
                                     uint32_t wd)
 {
+  uint8_t idx = priv->idx;
   uint32_t val;
   uint32_t tmp_val = 0;
 
@@ -1138,17 +1169,11 @@ static void bl808_spi_deinit(struct spi_dev_s *dev)
  * Name: bl808_spibus_initialize
  *
  * Description:
- *   Initialize the selected SPI bus
- *
- * Input Parameters:
- *   Port number (for hardware that has multiple SPI interfaces)
- *
- * Returned Value:
- *   Valid SPI device structure reference on success; a NULL on failure
+ *   Initialize and register the configured SPI busses
  *
  ****************************************************************************/
 
-struct spi_dev_s *bl808_spibus_initialize(int port)
+int *bl808_spibus_initialize(void)
 {
   struct spi_dev_s *spi_dev;
   struct bl808_spi_priv_s *priv;
@@ -1157,29 +1182,48 @@ struct spi_dev_s *bl808_spibus_initialize(int port)
     {
 #ifdef CONFIG_BL808_SPI0
     case 0:
-      priv = &bl808_spi_priv;
+      priv = &bl808_spi0_priv;
       break;
 #endif
   default:
     return NULL;
     }
 
+#ifdef CONFIG_BL808_SPI0
+  priv = &bl808_spi0_priv;
+
   spi_dev = (struct spi_dev_s *)priv;
 
   nxmutex_lock(&priv->lock);
-  if (priv->refs != 0)
+  if (priv->refs == 0)
     {
-      priv->refs++;
-      nxmutex_unlock(&priv->lock);
-
-      return spi_dev;
+      bl808_spi_init(spi_dev);
     }
 
-  bl808_spi_init(spi_dev);
   priv->refs++;
+  spi_register(spi_dev);
 
   nxmutex_unlock(&priv->lock);
-  return spi_dev;
+#endif
+
+#ifdef CONFIG_BL808_SPI1
+  priv = &bl808_spi1_priv;
+
+  spi_dev = (struct spi_dev_s *)priv;
+
+  nxmutex_lock(&priv->lock);
+  if (priv->refs == 0)
+    {
+      bl808_spi_init(spi_dev);
+    }
+
+  priv->refs++;
+  spi_register(spi_dev);
+
+  nxmutex_unlock(&priv->lock);
+#endif
+  
+  return OK;
 }
 
 /****************************************************************************
