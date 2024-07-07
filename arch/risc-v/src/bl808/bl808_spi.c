@@ -56,6 +56,7 @@
  ****************************************************************************/
 
 #define SPI_FREQ_DEFAULT 400000
+#define SPI_CLK_PRE_DIV 160000000
 
 /****************************************************************************
  * Private Types
@@ -370,17 +371,19 @@ bl808_prescale_and_count_cal(uint32_t counter_width,
  *
  ****************************************************************************/
 
-static void bl808_set_spi_clk(uint8_t enable, uint8_t div)
+static void bl808_set_spi_clk(uint8_t div, uint8_t idx)
 {
-  modifyreg32(BL808_CLK_CFG3, CLK_CFG3_SPI_CLK_DIV_MASK, div);
-
-  if (enable)
+  if (idx == 0)
     {
-      modifyreg32(BL808_CLK_CFG3, 0, CLK_CFG3_SPI_CLK_EN);
+      modifyreg32(BL808_GLB_SPI_CFG0,
+		  SPI_CFG_CLK_DIV_MASK,
+		  (div << SPI_CFG_CLK_DIV_SHIFT));
     }
   else
     {
-      modifyreg32(BL808_CLK_CFG3, CLK_CFG3_SPI_CLK_EN, 0);
+      modifyreg32(BL808_MM_GLB_CLK_CTRL_PERI,
+		  CLK_CTRL_PERI_SPI_DIV_MASK,
+		  (div << CLK_CTRL_PERI_SPI_DIV_SHIFT));
     }
 }
 
@@ -396,14 +399,14 @@ static void bl808_clockconfig(struct spi_clock_cfg_s *clockcfg, uint8_t idx)
 {
   /* Configure length of data phase1/0 and start/stop condition */
 
-  modifyreg32(BL808_SPI_PRD_0(idx), SPI_PRD_0(idx)_CR_S_MASK,
+  modifyreg32(BL808_SPI_PRD_0(idx), SPI_PRD_0_CR_S_MASK,
               (clockcfg->start_len - 1));
-  modifyreg32(BL808_SPI_PRD_0(idx), SPI_PRD_0(idx)_CR_P_MASK,
-              (clockcfg->stop_len - 1) << SPI_PRD_0(idx)_CR_P_SHIFT);
-  modifyreg32(BL808_SPI_PRD_0(idx), SPI_PRD_0(idx)_CR_D_PH_0_MASK,
-              (clockcfg->data_phase0_len - 1) << SPI_PRD_0(idx)_CR_D_PH_0_SHIFT);
-  modifyreg32(BL808_SPI_PRD_0(idx), SPI_PRD_0(idx)_CR_D_PH_1_MASK,
-              (clockcfg->data_phase1_len - 1) << SPI_PRD_0(idx)_CR_D_PH_1_SHIFT);
+  modifyreg32(BL808_SPI_PRD_0(idx), SPI_PRD_0_CR_P_MASK,
+              (clockcfg->stop_len - 1) << SPI_PRD_0_CR_P_SHIFT);
+  modifyreg32(BL808_SPI_PRD_0(idx), SPI_PRD_0_CR_D_PH_0_MASK,
+              (clockcfg->data_phase0_len - 1) << SPI_PRD_0_CR_D_PH_0_SHIFT);
+  modifyreg32(BL808_SPI_PRD_0(idx), SPI_PRD_0_CR_D_PH_1_MASK,
+              (clockcfg->data_phase1_len - 1) << SPI_PRD_0_CR_D_PH_1_SHIFT);
 
   /* Configure length of interval between frame */
 
@@ -506,10 +509,7 @@ static uint32_t bl808_spi_setfrequency(struct spi_dev_s *dev,
   struct spi_clock_cfg_s clockcfg;
   size_t count;
   uint8_t ticks;
-  uint8_t bclk_div;
   uint32_t clk_div;
-  uint32_t sys_clock;
-  uint32_t spi_basic_clk;
 
   if (priv->frequency == frequency)
     {
@@ -517,13 +517,14 @@ static uint32_t bl808_spi_setfrequency(struct spi_dev_s *dev,
 
       return priv->actual;
     }
+  
+  ticks = SPI_CLK_PRE_DIV / frequency;
 
-  bclk_div = bl808_glb_get_bclk_div();
-  sys_clock = getreg32(BL808_HBN_RSV2);
-  spi_basic_clk = sys_clock / (bclk_div + 1) / 2;
-  ticks = spi_basic_clk / frequency;
+  /* Width of SPI1 clk div is 8, vs 5 for SPI0 */
+  
+  uint8_t max_div = (idx == 0) ? 0x1f : 0xff;
 
-  if (bl808_prescale_and_count_cal(8, 0xff, ticks, &clk_div, &count) != 0)
+  if (bl808_prescale_and_count_cal(8, max_div, ticks, &clk_div, &count) != 0)
     {
       spierr("SPI div clk error\n");
       DEBUGPANIC();
