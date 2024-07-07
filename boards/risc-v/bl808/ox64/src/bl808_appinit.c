@@ -175,8 +175,8 @@ void board_late_initialize(void)
 
   uint32_t tmp = getreg32(0x30007000 + 0x10);
   printf("MM_CLC_CTRL_CPU: %#010x\n", tmp);
-  tmp = getreg32(0x20000000 + 0x1b0);
-  printf("spi_cfg0: %#010x\n", tmp);
+  tmp = getreg32(0x20000000 + 0x510);
+  printf("parm_cfg0: %#010x\n", tmp);
 
   /* END OF DEBUG STUFF*/
 

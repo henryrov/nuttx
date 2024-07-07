@@ -1030,58 +1030,6 @@ static void bl808_spi_recvblock(struct spi_dev_s *dev,
 #endif
 
 /****************************************************************************
- * Name: bl808_set_spi_0_act_mode_sel
- *
- * Description:
- *   set spi act mode
- *
- * Input Parameters:
- *   mod      - mode
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-
-static void bl808_set_spi_0_act_mode_sel(uint8_t mod)
-{
-  if (mod)
-    {
-      modifyreg32(BL808_GLB_GLB_PARM, 0, GLB_PARM_REG_SPI_0_MASTER_MODE);
-    }
-  else
-    {
-      modifyreg32(BL808_GLB_GLB_PARM, GLB_PARM_REG_SPI_0_MASTER_MODE, 0);
-    }
-}
-
-/****************************************************************************
- * Name: bl808_swap_spi_0_mosi_with_miso
- *
- * Description:
- *   Swap SPI0 MOSI with MISO
- *
- * Input Parameters:
- *   swap      - Non-zero to swap MOSI and MISO
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-
-static void bl808_swap_spi_0_mosi_with_miso(uint8_t swap)
-{
-  if (swap)
-    {
-      modifyreg32(BL808_GLB_GLB_PARM, 0, GLB_PARM_REG_SPI_0_SWAP);
-    }
-  else
-    {
-      modifyreg32(BL808_GLB_GLB_PARM, GLB_PARM_REG_SPI_0_SWAP, 0);
-    }
-}
-
-/****************************************************************************
  * Name: bl808_spi_init
  *
  * Description:
@@ -1108,11 +1056,9 @@ static void bl808_spi_init(struct spi_dev_s *dev)
 
   /* set master mode */
 
-  bl808_set_spi_0_act_mode_sel(1);
-
-  /* swap MOSI with MISO to be consistent with BL808 Reference Manual */
-
-  bl808_swap_spi_0_mosi_with_miso(1);
+  modifyreg32(BL808_GLB_PARM_CFG0, 0,
+	      PARM_SPI_0_MASTER_MODE_SHIFT
+	      | PARM_MM_SPI_MASTER_MODE_SHIFT);
 
   /* spi cfg  reg:
    * cr_spi_deg_en 1
