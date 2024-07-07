@@ -44,10 +44,10 @@
 
 #include <arch/board/board.h>
 
-#include "bl808_glb.h"
 #include "bl808_gpio.h"
 #include "bl808_spi.h"
 #include "hardware/bl808_glb.h"
+#include "hardware/bl808_mm_glb.h"
 #include "hardware/bl808_spi.h"
 #include "riscv_internal.h"
 
@@ -410,7 +410,7 @@ static void bl808_clockconfig(struct spi_clock_cfg_s *clockcfg, uint8_t idx)
 
   /* Configure length of interval between frame */
 
-  modifyreg32(BL808_SPI_PRD_1(idx), SPI_PRD_1(idx)_CR_I_MASK,
+  modifyreg32(BL808_SPI_PRD_1(idx), SPI_PRD_1_CR_I_MASK,
               clockcfg->interval_len - 1);
 }
 
@@ -610,23 +610,23 @@ bl808_spi_setmode(struct spi_dev_s *dev, enum spi_mode_e mode)
       switch (mode)
         {
         case SPIDEV_MODE0: /* CPOL=0; CPHA=0 */
-          modifyreg32(BL808_SPI_CFG(idx), SPI_CFG(idx)_CR_SCLK_POL
-                      | SPI_CFG(idx)_CR_SCLK_PH, 0);
+          modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_SCLK_POL
+                      | SPI_CFG_CR_SCLK_PH, 0);
           break;
 
         case SPIDEV_MODE1: /* CPOL=0; CPHA=1 */
-          modifyreg32(BL808_SPI_CFG(idx), SPI_CFG(idx)_CR_SCLK_POL,
-                      SPI_CFG(idx)_CR_SCLK_PH);
+          modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_SCLK_POL,
+                      SPI_CFG_CR_SCLK_PH);
           break;
 
         case SPIDEV_MODE2: /* CPOL=1; CPHA=0 */
-          modifyreg32(BL808_SPI_CFG(idx), SPI_CFG(idx)_CR_SCLK_PH,
-                      SPI_CFG(idx)_CR_SCLK_POL);
+          modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_SCLK_PH,
+                      SPI_CFG_CR_SCLK_POL);
           break;
 
         case SPIDEV_MODE3: /* CPOL=1; CPHA=1 */
-          modifyreg32(BL808_SPI_CFG(idx), 0, SPI_CFG(idx)_CR_SCLK_POL
-                      | SPI_CFG(idx)_CR_SCLK_PH);
+          modifyreg32(BL808_SPI_CFG(idx), 0, SPI_CFG_CR_SCLK_POL
+                      | SPI_CFG_CR_SCLK_PH);
           break;
 
         default:
@@ -673,12 +673,12 @@ static void bl808_spi_setbits(struct spi_dev_s *dev, int nbits)
 
         /* set valid width for each fifo entry 8 bit */
 
-        modifyreg32(BL808_SPI_CFG(idx), SPI_CFG(idx)_CR_FRAME_SIZE_MASK, 0);
+        modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_FRAME_SIZE_MASK, 0);
         break;
 
       case 16:
-        modifyreg32(BL808_SPI_CFG(idx), SPI_CFG(idx)_CR_FRAME_SIZE_MASK,
-                    1 << SPI_CFG(idx)_CR_FRAME_SIZE_SHIFT);
+        modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_FRAME_SIZE_MASK,
+                    1 << SPI_CFG_CR_FRAME_SIZE_SHIFT);
         break;
 
       default:
@@ -833,12 +833,12 @@ static uint32_t bl808_spi_poll_send(struct bl808_spi_priv_s *priv,
 
   /* spi enable master */
 
-  modifyreg32(BL808_SPI_CFG(idx), SPI_CFG(idx)_CR_S_EN, SPI_CFG(idx)_CR_M_EN);
+  modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_S_EN, SPI_CFG_CR_M_EN);
 
   /* spi fifo clear  */
 
-  modifyreg32(BL808_SPI_FIFO_CFG_0(idx), SPI_FIFO_CFG_0(idx)_RX_CLR
-              | SPI_FIFO_CFG_0(idx)_TX_CLR, 0);
+  modifyreg32(BL808_SPI_FIFO_CFG_0(idx), SPI_FIFO_CFG_0_RX_CLR
+              | SPI_FIFO_CFG_0_TX_CLR, 0);
 
   /* write data to tx fifo */
 
@@ -849,8 +849,8 @@ static uint32_t bl808_spi_poll_send(struct bl808_spi_priv_s *priv,
       /* get data from rx fifo */
 
       tmp_val = getreg32(BL808_SPI_FIFO_CFG_1(idx));
-      tmp_val = (tmp_val & SPI_FIFO_CFG_1(idx)_RX_CNT_MASK)
-                >> SPI_FIFO_CFG_1(idx)_RX_CNT_SHIFT;
+      tmp_val = (tmp_val & SPI_FIFO_CFG_1_RX_CNT_MASK)
+                >> SPI_FIFO_CFG_1_RX_CNT_SHIFT;
     }
 
   val = getreg32(BL808_SPI_FIFO_RDATA(idx));
@@ -1099,6 +1099,7 @@ static void bl808_spi_init(struct spi_dev_s *dev)
 {
   struct bl808_spi_priv_s *priv = (struct bl808_spi_priv_s *)dev;
   const struct bl808_spi_config_s *config = priv->config;
+  uint8_t idx = priv->idx;
 
   bl808_configgpio(BOARD_SPI_CS);
   bl808_configgpio(BOARD_SPI_MOSI);
@@ -1120,15 +1121,15 @@ static void bl808_spi_init(struct spi_dev_s *dev)
    * cr_spi_bit_inv 0
    */
 
-  modifyreg32(BL808_SPI_CFG(idx), SPI_CFG(idx)_CR_M_CONT_EN
-              | SPI_CFG(idx)_CR_BYTE_INV | SPI_CFG(idx)_CR_BIT_INV,
-              SPI_CFG(idx)_CR_DEG_EN);
+  modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_M_CONT_EN
+              | SPI_CFG_CR_BYTE_INV | SPI_CFG_CR_BIT_INV,
+              SPI_CFG_CR_DEG_EN);
 
   /* Disable rx ignore.
    * Enable continuous mode.
    */
 
-  modifyreg32(BL808_SPI_CFG(idx), SPI_CFG(idx)_CR_RXD_IGNR_EN, SPI_CFG(idx)_CR_M_CONT_EN);
+  modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_RXD_IGNR_EN, SPI_CFG_CR_M_CONT_EN);
 
   bl808_spi_setfrequency(dev, config->clk_freq);
   bl808_spi_setbits(dev, 8);
@@ -1136,8 +1137,8 @@ static void bl808_spi_init(struct spi_dev_s *dev)
 
   /* spi fifo clear */
 
-  modifyreg32(BL808_SPI_FIFO_CFG_0(idx), SPI_FIFO_CFG_0(idx)_RX_CLR
-              | SPI_FIFO_CFG_0(idx)_TX_CLR, 0);
+  modifyreg32(BL808_SPI_FIFO_CFG_0(idx), SPI_FIFO_CFG_0_RX_CLR
+              | SPI_FIFO_CFG_0_TX_CLR, 0);
 }
 
 /****************************************************************************
@@ -1156,14 +1157,6 @@ static void bl808_spi_init(struct spi_dev_s *dev)
 
 static void bl808_spi_deinit(struct spi_dev_s *dev)
 {
-  struct bl808_spi_priv_s *priv = (struct bl808_spi_priv_s *)dev;
-
-  bl808_swrst_ahb_slave1(AHB_SLAVE1_SPI);
-
-  priv->frequency = 0;
-  priv->actual = 0;
-  priv->mode = SPIDEV_MODE0;
-  priv->nbits = 0;
 }
 
 /****************************************************************************
@@ -1174,21 +1167,10 @@ static void bl808_spi_deinit(struct spi_dev_s *dev)
  *
  ****************************************************************************/
 
-int *bl808_spibus_initialize(void)
+int bl808_spibus_initialize(void)
 {
   struct spi_dev_s *spi_dev;
   struct bl808_spi_priv_s *priv;
-
-  switch (port)
-    {
-#ifdef CONFIG_BL808_SPI0
-    case 0:
-      priv = &bl808_spi0_priv;
-      break;
-#endif
-  default:
-    return NULL;
-    }
 
 #ifdef CONFIG_BL808_SPI0
   priv = &bl808_spi0_priv;

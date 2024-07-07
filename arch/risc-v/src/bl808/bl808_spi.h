@@ -61,7 +61,7 @@ extern "C"
  *
  ****************************************************************************/
 
-struct spi_dev_s *bl808_spibus_initialize(int port);
+int bl808_spibus_initialize(void);
 
 /****************************************************************************
  * Name: bl808_spibus_uninitialize
