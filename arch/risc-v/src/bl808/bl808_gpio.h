@@ -114,14 +114,14 @@
 #define GPIO_FUNC_SDH    (0  << GPIO_FUNC_SHIFT)  /* SDH */
 #define GPIO_FUNC_SPI0   (1  << GPIO_FUNC_SHIFT)  /* SPI0 */
 #define GPIO_FUNC_FLASH  (2  << GPIO_FUNC_SHIFT)  /* Flash */
-#define GPIO_FUNC_I2C    (6  << GPIO_FUNC_SHIFT)  /* I2C */
+#define GPIO_FUNC_I2C1   (6  << GPIO_FUNC_SHIFT)  /* I2C1 */
 #define GPIO_FUNC_UART   (7  << GPIO_FUNC_SHIFT)  /* UART */
-#define GPIO_FUNC_PWM    (8  << GPIO_FUNC_SHIFT)  /* PWM */
-#define GPIO_FUNC_EXT_PA (9  << GPIO_FUNC_SHIFT)  /* Analog */
+#define GPIO_FUNC_CAM    (9  << GPIO_FUNC_SHIFT)  /* CSI */
 #define GPIO_FUNC_ANA    (10 << GPIO_FUNC_SHIFT)  /* Analog */
 #define GPIO_FUNC_SWGPIO (11 << GPIO_FUNC_SHIFT)  /* Software GPIO */
-#define GPIO_FUNC_JTAG   (14 << GPIO_FUNC_SHIFT)  /* JTAG */
-#define GPIO_FUNC_SPI1 (18 << GPIO_FUNC_SHIFT)  /* MM SPI */
+#define GPIO_FUNC_PWM0   (16 << GPIO_FUNC_SHIFT)  /* PWM0 */
+#define GPIO_FUNC_SPI1   (18 << GPIO_FUNC_SHIFT)  /* SPI1 */
+#define GPIO_FUNC_JTAG_D0 (27 << GPIO_FUNC_SHIFT)  /* JTAG */
 
 /****************************************************************************
  * Public Types
