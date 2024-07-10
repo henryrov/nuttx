@@ -25,7 +25,6 @@
 #include <nuttx/config.h>
 
 #include <stdbool.h>
-#include <stdio.h>
 #include <syslog.h>
 #include <errno.h>
 
@@ -38,6 +37,9 @@
 
 #ifdef CONFIG_USERLED
 #include <nuttx/leds/userled.h>
+#endif
+#if defined(CONFIG_BL808_SPI0) || defined(CONFIG_BL808_SPI1)
+#include "bl808_spi.h"
 #endif
 #include "bl808_gpadc.h"
 
@@ -171,14 +173,15 @@ void board_late_initialize(void)
 
 #endif
 
-  /* DEBUG STUFF */
+#ifdef CONFIG_BL808_SPI0
+  struct spi_dev_s *spi0 = bl808_spibus_initialize(0);
+  spi_register(spi0, 0);
+#endif
 
-  uint32_t tmp = getreg32(0x30007000 + 0x10);
-  printf("MM_CLC_CTRL_CPU: %#010x\n", tmp);
-  tmp = getreg32(0x20000000 + 0x510);
-  printf("parm_cfg0: %#010x\n", tmp);
-
-  /* END OF DEBUG STUFF*/
+#ifdef CONFIG_BL808_SPI1
+  struct spi_dev_s *spi1 = bl808_spibus_initialize(1);
+  spi_register(spi1, 1);
+#endif
 
 #ifdef CONFIG_NSH_ARCHINIT
 

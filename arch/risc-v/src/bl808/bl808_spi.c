@@ -51,6 +51,10 @@
 #include "hardware/bl808_spi.h"
 #include "riscv_internal.h"
 
+/* This file is based on bl602/bl602_spi.c */
+
+#if defined(CONFIG_BL808_SPI0) || defined(CONFIG_BL808_SPI1)
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -131,11 +135,6 @@ struct bl808_spi_priv_s
 
   mutex_t lock;
 
-  /* Interrupt wait semaphore */
-
-  sem_t sem_isr_tx;
-  sem_t sem_isr_rx;
-
   uint32_t frequency; /* Requested clock frequency */
   uint32_t actual;    /* Actual clock frequency */
 
@@ -184,7 +183,6 @@ static void bl808_spi_recvblock(struct spi_dev_s *dev,
 static int bl808_spi_trigger(struct spi_dev_s *dev);
 #endif
 static void bl808_spi_init(struct spi_dev_s *dev);
-static void bl808_spi_deinit(struct spi_dev_s *dev);
 
 /****************************************************************************
  * Private Data
@@ -236,8 +234,6 @@ static struct bl808_spi_priv_s bl808_spi0_priv =
   .idx        = 0,
   .config     = &bl808_spi0_config,
   .lock       = NXMUTEX_INITIALIZER,
-  .sem_isr_tx = SEM_INITIALIZER(0),
-  .sem_isr_rx = SEM_INITIALIZER(0),
 };
 
 #endif  /* CONFIG_BL808_SPI0 */
@@ -255,11 +251,9 @@ static struct bl808_spi_priv_s bl808_spi1_priv =
   {
     .ops      = &bl808_spi_ops
   },
-  .idx        = 1
+  .idx        = 1,
   .config     = &bl808_spi1_config,
   .lock       = NXMUTEX_INITIALIZER,
-  .sem_isr_tx = SEM_INITIALIZER(0),
-  .sem_isr_rx = SEM_INITIALIZER(0),
 };
 
 #endif  /* CONFIG_BL808_SPI1 */
@@ -474,14 +468,37 @@ static void bl808_spi_select(struct spi_dev_s *dev, uint32_t devid,
 {
   /* we used hardware CS */
 
-  spiinfo("devid: %lu, CS: %s\n", devid, selected ? "select" : "free");
+  spiinfo("devid: %u, CS: %s\n", devid, selected ? "select" : "free");
 
 #ifdef CONFIG_SPI_CMDDATA
   /* revert MISO from GPIO Pin to SPI Pin */
 
+  struct bl808_spi_priv_s *priv = (struct bl808_spi_priv_s *)dev;
   if (!selected)
     {
-      bl808_configgpio(BOARD_SPI_MISO);
+#ifdef CONFIG_BL808_SPI0
+      if (priv->idx == 0)
+	{
+	  bl808_configgpio(CONFIG_BL808_SPI0_MISO,
+			   GPIO_INPUT
+			   |GPIO_DRV_1
+			   |GPIO_SMT_EN
+			   |GPIO_PULLUP
+			   |GPIO_FUNC_SPI0);
+	}
+#endif
+
+#ifdef CONFIG_BL808_SPI1
+      if (priv->idx == 1)
+	{
+	  bl808_configgpio(CONFIG_BL808_SPI1_MISO,
+			   GPIO_INPUT
+			   |GPIO_DRV_1
+			   |GPIO_SMT_EN
+			   |GPIO_PULLUP
+			   |GPIO_FUNC_SPI0);
+	}
+#endif
     }
 #endif
 }
@@ -508,7 +525,7 @@ static uint32_t bl808_spi_setfrequency(struct spi_dev_s *dev,
   uint8_t idx = priv->idx;
   struct spi_clock_cfg_s clockcfg;
   size_t count;
-  uint8_t ticks;
+  uint32_t ticks;
   uint32_t clk_div;
 
   if (priv->frequency == frequency)
@@ -522,7 +539,7 @@ static uint32_t bl808_spi_setfrequency(struct spi_dev_s *dev,
 
   /* Width of SPI1 clk div is 8, vs 5 for SPI0 */
   
-  uint8_t max_div = (idx == 0) ? 0x1f : 0xff;
+  uint32_t max_div = (idx == 0) ? 32 : 256;
 
   if (bl808_prescale_and_count_cal(8, max_div, ticks, &clk_div, &count) != 0)
     {
@@ -544,7 +561,7 @@ static uint32_t bl808_spi_setfrequency(struct spi_dev_s *dev,
 
   priv->frequency = frequency;
 
-  spiinfo("frequency=%lu, actual=%lu\n", priv->frequency, priv->actual);
+  spiinfo("frequency=%u, actual=%u\n", priv->frequency, priv->actual);
 
   return priv->actual;
 }
@@ -600,7 +617,7 @@ bl808_spi_setmode(struct spi_dev_s *dev, enum spi_mode_e mode)
 {
   struct bl808_spi_priv_s *priv = (struct bl808_spi_priv_s *)dev;
   uint8_t idx = priv->idx;
-
+  
   spiinfo("mode=%d\n", mode);
 
   /* Has the mode changed? */
@@ -609,24 +626,28 @@ bl808_spi_setmode(struct spi_dev_s *dev, enum spi_mode_e mode)
     {
       switch (mode)
         {
+	  /* NOTE: CPHA definition in the register is inverted compared
+	   * to the standard. See reference manual or bouffalo_sdk.
+	   */
+	  
         case SPIDEV_MODE0: /* CPOL=0; CPHA=0 */
+	  modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_SCLK_POL,
+                      SPI_CFG_CR_SCLK_PH);
+          break;
+
+        case SPIDEV_MODE1: /* CPOL=0; CPHA=1 */
           modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_SCLK_POL
                       | SPI_CFG_CR_SCLK_PH, 0);
           break;
 
-        case SPIDEV_MODE1: /* CPOL=0; CPHA=1 */
-          modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_SCLK_POL,
-                      SPI_CFG_CR_SCLK_PH);
-          break;
-
         case SPIDEV_MODE2: /* CPOL=1; CPHA=0 */
-          modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_SCLK_PH,
-                      SPI_CFG_CR_SCLK_POL);
+	  modifyreg32(BL808_SPI_CFG(idx), 0, SPI_CFG_CR_SCLK_POL
+                      | SPI_CFG_CR_SCLK_PH);
           break;
 
         case SPIDEV_MODE3: /* CPOL=1; CPHA=1 */
-          modifyreg32(BL808_SPI_CFG(idx), 0, SPI_CFG_CR_SCLK_POL
-                      | SPI_CFG_CR_SCLK_PH);
+          modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_SCLK_PH,
+                      SPI_CFG_CR_SCLK_POL);
           break;
 
         default:
@@ -746,28 +767,36 @@ static int bl808_spi_cmddata(struct spi_dev_s *dev,
 {
   spiinfo("devid: %" PRIu32 " CMD: %s\n", devid, cmd ? "command" :
           "data");
+  struct bl808_spi_priv_s *priv = (struct bl808_spi_priv_s *)dev;
 
   if (devid == SPIDEV_DISPLAY(0))
     {
       gpio_pinset_t gpio;
       int ret;
 
-      /* reconfigure MISO from SPI Pin to GPIO Pin */
+      /* reconfigure MISO from SPI Pin to GPIO Pin,
+       * then write 0 for command or 1 for data
+       */
 
-      gpio = (BOARD_SPI_MISO & GPIO_PIN_MASK)
-             | GPIO_OUTPUT | GPIO_PULLUP | GPIO_FUNC_SWGPIO;
-      ret = bl808_configgpio(gpio);
-      if (ret < 0)
-        {
-          spierr("Failed to configure MISO as GPIO\n");
-          DEBUGPANIC();
+#ifdef CONFIG_BL808_SPI0
+      if (priv->idx == 0)
+	{
+	  bl808_configgpio(BL808_SPI0_MISO, GPIO_OUTPUT
+			   | GPIO_PULLUP
+			   | GPIO_FUNC_SWGPIO);
+	  bl808_gpiowrite(BL808_SPI0_MISO, !cmd);
+	}
+#endif
 
-          return ret;
-        }
-
-      /* set MISO to high (data) or low (command) */
-
-      bl808_gpiowrite(gpio, !cmd);
+#ifdef CONFIG_BL808_SPI1
+      if (priv->idx == 1)
+	{
+	  bl808_configgpio(BL808_SPI1_MISO, GPIO_OUTPUT
+			   | GPIO_PULLUP
+			   | GPIO_FUNC_SWGPIO);
+	  bl808_gpiowrite(BL808_SPI1_MISO, !cmd);
+	}
+#endif
 
       return OK;
     }
@@ -831,18 +860,19 @@ static uint32_t bl808_spi_poll_send(struct bl808_spi_priv_s *priv,
   uint32_t val;
   uint32_t tmp_val = 0;
 
-  /* spi enable master */
-
-  modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_S_EN, SPI_CFG_CR_M_EN);
-
   /* spi fifo clear  */
 
-  modifyreg32(BL808_SPI_FIFO_CFG_0(idx), SPI_FIFO_CFG_0_RX_CLR
-              | SPI_FIFO_CFG_0_TX_CLR, 0);
+  modifyreg32(BL808_SPI_FIFO_CFG_0(idx), 0,
+	      SPI_FIFO_CFG_0_RX_CLR
+              | SPI_FIFO_CFG_0_TX_CLR);
 
   /* write data to tx fifo */
 
   putreg32(wd, BL808_SPI_FIFO_WDATA(idx));
+
+  /* spi enable master */
+
+  modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_S_EN, SPI_CFG_CR_M_EN);
 
   while (0 == tmp_val)
     {
@@ -855,7 +885,9 @@ static uint32_t bl808_spi_poll_send(struct bl808_spi_priv_s *priv,
 
   val = getreg32(BL808_SPI_FIFO_RDATA(idx));
 
-  spiinfo("send=%lx and recv=%lx\n", wd, val);
+  spiinfo("send=%x and recv=%x\n", wd, val);
+
+  modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_M_EN, 0);
 
   return val;
 }
@@ -1030,6 +1062,33 @@ static void bl808_spi_recvblock(struct spi_dev_s *dev,
 #endif
 
 /****************************************************************************
+ * Name: bl808_spi_trigger
+ *
+ * Description:
+ *   Trigger a previously configured DMA transfer.
+ *
+ * Input Parameters:
+ *   dev      - Device-specific state data
+ *
+ * Returned Value:
+ *   OK       - Trigger was fired
+ *   -ENOSYS  - Trigger not fired due to lack of DMA or low level support
+ *   -EIO     - Trigger not fired because not previously primed
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_SPI_TRIGGER
+static int bl808_spi_trigger(struct spi_dev_s *dev)
+{
+  spierr("SPI trigger not supported\n");
+  DEBUGPANIC();
+
+  return -ENOSYS;
+}
+#endif
+
+
+/****************************************************************************
  * Name: bl808_spi_init
  *
  * Description:
@@ -1049,16 +1108,69 @@ static void bl808_spi_init(struct spi_dev_s *dev)
   const struct bl808_spi_config_s *config = priv->config;
   uint8_t idx = priv->idx;
 
-  bl808_configgpio(BOARD_SPI_CS);
-  bl808_configgpio(BOARD_SPI_MOSI);
-  bl808_configgpio(BOARD_SPI_MISO);
-  bl808_configgpio(BOARD_SPI_CLK);
+#ifdef CONFIG_BL808_SPI0
+  if (idx == 0)
+    {
+      bl808_configgpio(CONFIG_BL808_SPI0_MISO,
+		       GPIO_INPUT
+		       |GPIO_DRV_1
+		       |GPIO_SMT_EN
+		       |GPIO_PULLUP
+		       |GPIO_FUNC_SPI0);
+      bl808_configgpio(CONFIG_BL808_SPI0_MOSI,
+		       GPIO_INPUT
+		       |GPIO_DRV_1
+		       |GPIO_SMT_EN
+		       |GPIO_PULLUP
+		       |GPIO_FUNC_SPI0);
+      bl808_configgpio(CONFIG_BL808_SPI0_SCLK,
+		       GPIO_INPUT
+		       |GPIO_DRV_1
+		       |GPIO_SMT_EN
+		       |GPIO_PULLUP
+		       |GPIO_FUNC_SPI0);
+      bl808_configgpio(CONFIG_BL808_SPI0_SS,
+		       GPIO_INPUT
+		       |GPIO_DRV_1
+		       |GPIO_SMT_EN
+		       |GPIO_PULLUP
+		       |GPIO_FUNC_SPI0);
+      modifyreg32(BL808_GLB_PARM_CFG0, 0,
+		  1 << PARM_SPI_0_MASTER_MODE_SHIFT);
+    }
+#endif
 
-  /* set master mode */
-
-  modifyreg32(BL808_GLB_PARM_CFG0, 0,
-	      PARM_SPI_0_MASTER_MODE_SHIFT
-	      | PARM_MM_SPI_MASTER_MODE_SHIFT);
+#ifdef CONFIG_BL808_SPI1
+  if (idx == 1)
+    {
+      bl808_configgpio(CONFIG_BL808_SPI1_MISO,
+		       GPIO_INPUT
+		       |GPIO_DRV_1
+		       |GPIO_SMT_EN
+		       |GPIO_PULLUP
+		       |GPIO_FUNC_SPI1);
+      bl808_configgpio(CONFIG_BL808_SPI1_MOSI,
+		       GPIO_INPUT
+		       |GPIO_DRV_1
+		       |GPIO_SMT_EN
+		       |GPIO_PULLUP
+		       |GPIO_FUNC_SPI1);
+      bl808_configgpio(CONFIG_BL808_SPI1_SCLK,
+		       GPIO_INPUT
+		       |GPIO_DRV_1
+		       |GPIO_SMT_EN
+		       |GPIO_PULLUP
+		       |GPIO_FUNC_SPI1);
+      bl808_configgpio(CONFIG_BL808_SPI1_SS,
+		       GPIO_INPUT
+		       |GPIO_DRV_1
+		       |GPIO_SMT_EN
+		       |GPIO_PULLUP
+		       |GPIO_FUNC_SPI1);
+      modifyreg32(BL808_GLB_PARM_CFG0, 0,
+		  1 << PARM_MM_SPI_MASTER_MODE_SHIFT);
+    }
+#endif
 
   /* spi cfg  reg:
    * cr_spi_deg_en 1
@@ -1083,26 +1195,8 @@ static void bl808_spi_init(struct spi_dev_s *dev)
 
   /* spi fifo clear */
 
-  modifyreg32(BL808_SPI_FIFO_CFG_0(idx), SPI_FIFO_CFG_0_RX_CLR
-              | SPI_FIFO_CFG_0_TX_CLR, 0);
-}
-
-/****************************************************************************
- * Name: bl808_spi_deinit
- *
- * Description:
- *   Deinitialize bl808 SPI hardware interface
- *
- * Input Parameters:
- *   dev      - Device-specific state data
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-
-static void bl808_spi_deinit(struct spi_dev_s *dev)
-{
+  modifyreg32(BL808_SPI_FIFO_CFG_0(idx), 0, SPI_FIFO_CFG_0_RX_CLR
+              | SPI_FIFO_CFG_0_TX_CLR);
 }
 
 /****************************************************************************
@@ -1113,30 +1207,24 @@ static void bl808_spi_deinit(struct spi_dev_s *dev)
  *
  ****************************************************************************/
 
-int bl808_spibus_initialize(void)
+struct spi_dev_s *bl808_spibus_initialize(int bus)
 {
   struct spi_dev_s *spi_dev;
   struct bl808_spi_priv_s *priv;
 
 #ifdef CONFIG_BL808_SPI0
-  priv = &bl808_spi0_priv;
-
-  spi_dev = (struct spi_dev_s *)priv;
-
-  nxmutex_lock(&priv->lock);
-  if (priv->refs == 0)
+  if (bus == 0)
     {
-      bl808_spi_init(spi_dev);
+      priv = &bl808_spi0_priv;
     }
-
-  priv->refs++;
-  spi_register(spi_dev);
-
-  nxmutex_unlock(&priv->lock);
 #endif
 
 #ifdef CONFIG_BL808_SPI1
-  priv = &bl808_spi1_priv;
+  if (bus == 1)
+    {
+      priv = &bl808_spi1_priv;
+    }
+#endif
 
   spi_dev = (struct spi_dev_s *)priv;
 
@@ -1147,42 +1235,10 @@ int bl808_spibus_initialize(void)
     }
 
   priv->refs++;
-  spi_register(spi_dev);
 
   nxmutex_unlock(&priv->lock);
-#endif
-  
-  return OK;
+
+  return spi_dev;
 }
 
-/****************************************************************************
- * Name: bl808_spibus_uninitialize
- *
- * Description:
- *   Uninitialize an SPI bus
- *
- ****************************************************************************/
-
-int bl808_spibus_uninitialize(struct spi_dev_s *dev)
-{
-  struct bl808_spi_priv_s *priv = (struct bl808_spi_priv_s *)dev;
-
-  DEBUGASSERT(dev);
-
-  if (priv->refs == 0)
-    {
-      return ERROR;
-    }
-
-  nxmutex_lock(&priv->lock);
-  if (--priv->refs)
-    {
-      nxmutex_unlock(&priv->lock);
-      return OK;
-    }
-
-  bl808_spi_deinit(dev);
-  nxmutex_unlock(&priv->lock);
-
-  return OK;
-}
+#endif /* CONFIG_BL808_SPI0 || CONFIG_BL808_SPI1 */

@@ -21,7 +21,7 @@
 #ifndef __ARCH_RISCV_SRC_BL808_BL808_SPI_H
 #define __ARCH_RISCV_SRC_BL808_BL808_SPI_H
 
-/* This file is based on bl602/bl602_spi.h
+/* This file is based on bl602/bl602_spi.h */
 
 /****************************************************************************
  * Included Files
@@ -61,17 +61,7 @@ extern "C"
  *
  ****************************************************************************/
 
-int bl808_spibus_initialize(void);
-
-/****************************************************************************
- * Name: bl808_spibus_uninitialize
- *
- * Description:
- *   Uninitialize an SPI bus
- *
- ****************************************************************************/
-
-int bl808_spibus_uninitialize(struct spi_dev_s *dev);
+struct spi_dev_s *bl808_spibus_initialize(int bus);
 
 #ifdef __cplusplus
 }

@@ -130,4 +130,66 @@ config BL808_UART3
 	select UART3_SERIALDRIVER
 	select ARCH_HAVE_SERIAL_TERMIOS
 
+config BL808_SPI0
+	bool "SPI 0"
+	default n
+
+menu "SPI 0 Options"
+	depends on BL808_SPI0
+
+comment "Refer to datasheet for valid pin assignments"
+
+config BL808_SPI0_MISO
+	int "MISO Pin"
+	default 14
+	range 0 45
+
+config BL808_SPI0_MOSI
+	int "MOSI Pin"
+	default 13
+	range 0 45
+
+config BL808_SPI0_SCLK
+	int "SCLK Pin"
+	default 15
+	range 0 45
+
+config BL808_SPI0_SS
+	int "SS Pin"
+	default 12
+	range 0 45
+
+endmenu
+
+config BL808_SPI1
+        bool "SPI 1"
+	default n
+
+menu "SPI 1 Options"
+        depends on BL808_SPI1
+
+comment "Refer to datasheet for valid pin assignments"
+
+config BL808_SPI1_MISO
+	int "MISO Pin"
+	default 14
+	range 0 45
+
+config BL808_SPI1_MOSI
+	int "MOSI Pin"
+	default 13
+	range 0 45
+
+config BL808_SPI1_SCLK
+	int "SCLK Pin"
+	default 15
+	range 0 45
+
+config BL808_SPI1_SS
+	int "SS Pin"
+	default 12
+	range 0 45
+
+endmenu
+
 endmenu
