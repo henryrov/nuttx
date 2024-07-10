@@ -93,21 +93,21 @@ struct spi_clock_cfg_s
 
 struct bl808_spi_config_s
 {
-  uint32_t clk_freq;    /* SPI clock frequency */
-  enum spi_mode_e mode; /* SPI default mode */
+  uint32_t clk_freq;      /* SPI clock frequency */
+  enum spi_mode_e mode;   /* SPI default mode */
 
   bool deglitch_enable;   /* Enable or disable de-glitch function */
   bool continuous_enable; /* Enable or disable master continuous transfer
-                              * mode,enable:SS will stay asserted if next data
-                              * is valid
-                              */
-  bool byte_invert;     /* The byte is sent first in SPI transfer ,0 is send
-                              * 0byte first; 1 is send 3byte first
-                              */
-  bool bit_invert;       /* The bit is sent first in SPI transfer ,0 is each byte
-                              * is sent out MSB first; 1 is each byte is sent out LSB
-                              * first
-                              */
+                           * mode,enable:SS will stay asserted if next data
+                           * is valid
+                           */
+  bool byte_invert;       /* The byte is sent first in SPI transfer ,0 is send
+                           * 0byte first; 1 is send 3byte first
+                           */
+  bool bit_invert;        /* The bit is sent first in SPI transfer ,0 is each byte
+                           * is sent out MSB first; 1 is each byte is sent out LSB
+                           * first
+                           */
 };
 
 struct bl808_spi_priv_s
@@ -224,7 +224,7 @@ static const struct bl808_spi_config_s bl808_spi0_config =
 #else
     .deglitch_enable = 0,
 #endif
-    
+
 #ifdef CONFIG_BL808_SPI0_CONT_ENABLE
     .continuous_enable = 1,
 #else
@@ -268,7 +268,7 @@ static const struct bl808_spi_config_s bl808_spi1_config =
 #else
     .deglitch_enable = 0,
 #endif
-    
+
 #ifdef CONFIG_BL808_SPI1_CONT_ENABLE
     .continuous_enable = 1,
 #else
@@ -413,14 +413,14 @@ static void bl808_set_spi_clk(uint8_t div, uint8_t idx)
   if (idx == 0)
     {
       modifyreg32(BL808_GLB_SPI_CFG0,
-		  SPI_CFG_CLK_DIV_MASK,
-		  (div << SPI_CFG_CLK_DIV_SHIFT));
+                  SPI_CFG_CLK_DIV_MASK,
+                  (div << SPI_CFG_CLK_DIV_SHIFT));
     }
   else
     {
       modifyreg32(BL808_MM_GLB_CLK_CTRL_PERI,
-		  CLK_CTRL_PERI_SPI_DIV_MASK,
-		  (div << CLK_CTRL_PERI_SPI_DIV_SHIFT));
+                  CLK_CTRL_PERI_SPI_DIV_MASK,
+                  (div << CLK_CTRL_PERI_SPI_DIV_SHIFT));
     }
 }
 
@@ -521,26 +521,26 @@ static void bl808_spi_select(struct spi_dev_s *dev, uint32_t devid,
     {
 #ifdef CONFIG_BL808_SPI0
       if (priv->idx == 0)
-	{
-	  bl808_configgpio(CONFIG_BL808_SPI0_MISO,
-			   GPIO_INPUT
-			   |GPIO_DRV_1
-			   |GPIO_SMT_EN
-			   |GPIO_PULLUP
-			   |GPIO_FUNC_SPI0);
-	}
+        {
+          bl808_configgpio(CONFIG_BL808_SPI0_MISO,
+                           GPIO_INPUT
+                           | GPIO_DRV_1
+                           | GPIO_SMT_EN
+                           | GPIO_PULLUP
+                           | GPIO_FUNC_SPI0);
+        }
 #endif
 
 #ifdef CONFIG_BL808_SPI1
       if (priv->idx == 1)
-	{
-	  bl808_configgpio(CONFIG_BL808_SPI1_MISO,
-			   GPIO_INPUT
-			   |GPIO_DRV_1
-			   |GPIO_SMT_EN
-			   |GPIO_PULLUP
-			   |GPIO_FUNC_SPI0);
-	}
+        {
+          bl808_configgpio(CONFIG_BL808_SPI1_MISO,
+                           GPIO_INPUT
+                           | GPIO_DRV_1
+                           | GPIO_SMT_EN
+                           | GPIO_PULLUP
+                           | GPIO_FUNC_SPI0);
+        }
 #endif
     }
 #endif
@@ -577,11 +577,11 @@ static uint32_t bl808_spi_setfrequency(struct spi_dev_s *dev,
 
       return priv->actual;
     }
-  
+
   ticks = SPI_CLK_PRE_DIV / frequency;
 
   /* Width of SPI1 clk div is 8, vs 5 for SPI0 */
-  
+
   uint32_t max_div = (idx == 0) ? 32 : 256;
 
   if (bl808_prescale_and_count_cal(8, max_div, ticks, &clk_div, &count) != 0)
@@ -660,7 +660,7 @@ bl808_spi_setmode(struct spi_dev_s *dev, enum spi_mode_e mode)
 {
   struct bl808_spi_priv_s *priv = (struct bl808_spi_priv_s *)dev;
   uint8_t idx = priv->idx;
-  
+
   spiinfo("mode=%d\n", mode);
 
   /* Has the mode changed? */
@@ -669,12 +669,12 @@ bl808_spi_setmode(struct spi_dev_s *dev, enum spi_mode_e mode)
     {
       switch (mode)
         {
-	  /* NOTE: CPHA definition in the register is inverted compared
-	   * to the standard. See reference manual or bouffalo_sdk.
-	   */
-	  
+          /* NOTE: CPHA definition in the register is inverted compared
+           * to the standard. See reference manual or bouffalo_sdk.
+           */
+
         case SPIDEV_MODE0: /* CPOL=0; CPHA=0 */
-	  modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_SCLK_POL,
+          modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_SCLK_POL,
                       SPI_CFG_CR_SCLK_PH);
           break;
 
@@ -684,7 +684,7 @@ bl808_spi_setmode(struct spi_dev_s *dev, enum spi_mode_e mode)
           break;
 
         case SPIDEV_MODE2: /* CPOL=1; CPHA=0 */
-	  modifyreg32(BL808_SPI_CFG(idx), 0, SPI_CFG_CR_SCLK_POL
+          modifyreg32(BL808_SPI_CFG(idx), 0, SPI_CFG_CR_SCLK_POL
                       | SPI_CFG_CR_SCLK_PH);
           break;
 
@@ -746,14 +746,14 @@ static void bl808_spi_setbits(struct spi_dev_s *dev, int nbits)
         break;
 
       case 24:
-	modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_FRAME_SIZE_MASK,
+        modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_FRAME_SIZE_MASK,
                     2 << SPI_CFG_CR_FRAME_SIZE_SHIFT);
-	break;
+        break;
 
       case 32:
-	modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_FRAME_SIZE_MASK,
+        modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_FRAME_SIZE_MASK,
                     3 << SPI_CFG_CR_FRAME_SIZE_SHIFT);
-	break;
+        break;
 
       default:
         return;
@@ -833,22 +833,22 @@ static int bl808_spi_cmddata(struct spi_dev_s *dev,
 
 #ifdef CONFIG_BL808_SPI0
       if (priv->idx == 0)
-	{
-	  bl808_configgpio(BL808_SPI0_MISO, GPIO_OUTPUT
-			   | GPIO_PULLUP
-			   | GPIO_FUNC_SWGPIO);
-	  bl808_gpiowrite(BL808_SPI0_MISO, !cmd);
-	}
+        {
+          bl808_configgpio(BL808_SPI0_MISO, GPIO_OUTPUT
+                           | GPIO_PULLUP
+                           | GPIO_FUNC_SWGPIO);
+          bl808_gpiowrite(BL808_SPI0_MISO, !cmd);
+        }
 #endif
 
 #ifdef CONFIG_BL808_SPI1
       if (priv->idx == 1)
-	{
-	  bl808_configgpio(BL808_SPI1_MISO, GPIO_OUTPUT
-			   | GPIO_PULLUP
-			   | GPIO_FUNC_SWGPIO);
-	  bl808_gpiowrite(BL808_SPI1_MISO, !cmd);
-	}
+        {
+          bl808_configgpio(BL808_SPI1_MISO, GPIO_OUTPUT
+                           | GPIO_PULLUP
+                           | GPIO_FUNC_SWGPIO);
+          bl808_gpiowrite(BL808_SPI1_MISO, !cmd);
+        }
 #endif
 
       return OK;
@@ -916,7 +916,7 @@ static uint32_t bl808_spi_poll_send(struct bl808_spi_priv_s *priv,
   /* spi fifo clear  */
 
   modifyreg32(BL808_SPI_FIFO_CFG_0(idx), 0,
-	      SPI_FIFO_CFG_0_RX_CLR
+              SPI_FIFO_CFG_0_RX_CLR
               | SPI_FIFO_CFG_0_TX_CLR);
 
   /* write data to tx fifo */
@@ -1140,7 +1140,6 @@ static int bl808_spi_trigger(struct spi_dev_s *dev)
 }
 #endif
 
-
 /****************************************************************************
  * Name: bl808_spi_init
  *
@@ -1165,31 +1164,31 @@ static void bl808_spi_init(struct spi_dev_s *dev)
   if (idx == 0)
     {
       bl808_configgpio(CONFIG_BL808_SPI0_MISO,
-		       GPIO_INPUT
-		       |GPIO_DRV_1
-		       |GPIO_SMT_EN
-		       |GPIO_PULLUP
-		       |GPIO_FUNC_SPI0);
+                       GPIO_INPUT
+                       | GPIO_DRV_1
+                       | GPIO_SMT_EN
+                       | GPIO_PULLUP
+                       | GPIO_FUNC_SPI0);
       bl808_configgpio(CONFIG_BL808_SPI0_MOSI,
-		       GPIO_INPUT
-		       |GPIO_DRV_1
-		       |GPIO_SMT_EN
-		       |GPIO_PULLUP
-		       |GPIO_FUNC_SPI0);
+                       GPIO_INPUT
+                       | GPIO_DRV_1
+                       | GPIO_SMT_EN
+                       | GPIO_PULLUP
+                       | GPIO_FUNC_SPI0);
       bl808_configgpio(CONFIG_BL808_SPI0_SCLK,
-		       GPIO_INPUT
-		       |GPIO_DRV_1
-		       |GPIO_SMT_EN
-		       |GPIO_PULLUP
-		       |GPIO_FUNC_SPI0);
+                       GPIO_INPUT
+                       | GPIO_DRV_1
+                       | GPIO_SMT_EN
+                       | GPIO_PULLUP
+                       | GPIO_FUNC_SPI0);
       bl808_configgpio(CONFIG_BL808_SPI0_SS,
-		       GPIO_INPUT
-		       |GPIO_DRV_1
-		       |GPIO_SMT_EN
-		       |GPIO_PULLUP
-		       |GPIO_FUNC_SPI0);
+                       GPIO_INPUT
+                       | GPIO_DRV_1
+                       | GPIO_SMT_EN
+                       | GPIO_PULLUP
+                       | GPIO_FUNC_SPI0);
       modifyreg32(BL808_GLB_PARM_CFG0, 0,
-		  1 << PARM_SPI_0_MASTER_MODE_SHIFT);
+                  1 << PARM_SPI_0_MASTER_MODE_SHIFT);
     }
 #endif
 
@@ -1197,31 +1196,31 @@ static void bl808_spi_init(struct spi_dev_s *dev)
   if (idx == 1)
     {
       bl808_configgpio(CONFIG_BL808_SPI1_MISO,
-		       GPIO_INPUT
-		       |GPIO_DRV_1
-		       |GPIO_SMT_EN
-		       |GPIO_PULLUP
-		       |GPIO_FUNC_SPI1);
+                       GPIO_INPUT
+                       | GPIO_DRV_1
+                       | GPIO_SMT_EN
+                       | GPIO_PULLUP
+                       | GPIO_FUNC_SPI1);
       bl808_configgpio(CONFIG_BL808_SPI1_MOSI,
-		       GPIO_INPUT
-		       |GPIO_DRV_1
-		       |GPIO_SMT_EN
-		       |GPIO_PULLUP
-		       |GPIO_FUNC_SPI1);
+                       GPIO_INPUT
+                       | GPIO_DRV_1
+                       | GPIO_SMT_EN
+                       | GPIO_PULLUP
+                       | GPIO_FUNC_SPI1);
       bl808_configgpio(CONFIG_BL808_SPI1_SCLK,
-		       GPIO_INPUT
-		       |GPIO_DRV_1
-		       |GPIO_SMT_EN
-		       |GPIO_PULLUP
-		       |GPIO_FUNC_SPI1);
+                       GPIO_INPUT
+                       | GPIO_DRV_1
+                       | GPIO_SMT_EN
+                       | GPIO_PULLUP
+                       | GPIO_FUNC_SPI1);
       bl808_configgpio(CONFIG_BL808_SPI1_SS,
-		       GPIO_INPUT
-		       |GPIO_DRV_1
-		       |GPIO_SMT_EN
-		       |GPIO_PULLUP
-		       |GPIO_FUNC_SPI1);
+                       GPIO_INPUT
+                       | GPIO_DRV_1
+                       | GPIO_SMT_EN
+                       | GPIO_PULLUP
+                       | GPIO_FUNC_SPI1);
       modifyreg32(BL808_GLB_PARM_CFG0, 0,
-		  1 << PARM_MM_SPI_MASTER_MODE_SHIFT);
+                  1 << PARM_MM_SPI_MASTER_MODE_SHIFT);
     }
 #endif
 
@@ -1262,22 +1261,22 @@ static void bl808_spi_init(struct spi_dev_s *dev)
 
   if (config->byte_invert)
     {
-      modifyreg32(BL808_SPI_CFG(idx), 0, SPI_CFG_CR_SPI_BYTE_INV);
+      modifyreg32(BL808_SPI_CFG(idx), 0, SPI_CFG_CR_BYTE_INV);
     }
   else
     {
-      modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_SPI_BYTE_INV, 0);
+      modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_BYTE_INV, 0);
     }
 
   /* Set bit inversion */
 
   if (config->bit_invert)
     {
-      modifyreg32(BL808_SPI_CFG(idx), 0, SPI_CFG_CR_SPI_BIT_INV);
+      modifyreg32(BL808_SPI_CFG(idx), 0, SPI_CFG_CR_BIT_INV);
     }
   else
     {
-      modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_SPI_BIT_INV, 0);
+      modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_BIT_INV, 0);
     }
 
   bl808_spi_setfrequency(dev, config->clk_freq);

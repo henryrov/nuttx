@@ -121,7 +121,7 @@
 #define GPIO_FUNC_SWGPIO (11 << GPIO_FUNC_SHIFT)  /* Software GPIO */
 #define GPIO_FUNC_PWM0   (16 << GPIO_FUNC_SHIFT)  /* PWM0 */
 #define GPIO_FUNC_SPI1   (18 << GPIO_FUNC_SHIFT)  /* SPI1 */
-#define GPIO_FUNC_JTAG_D0 (27 << GPIO_FUNC_SHIFT)  /* JTAG */
+#define GPIO_FUNC_JTAG_D0 (27 << GPIO_FUNC_SHIFT) /* JTAG */
 
 /****************************************************************************
  * Public Types

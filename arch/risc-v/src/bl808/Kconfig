@@ -133,6 +133,7 @@ config BL808_UART3
 menuconfig BL808_SPI0
 	bool "SPI 0"
 	default n
+	select SPI
 
 if BL808_SPI0
 
@@ -179,6 +180,7 @@ endif
 menuconfig BL808_SPI1
 	bool "SPI 1"
 	default n
+	select SPI
 
 if BL808_SPI1
 
