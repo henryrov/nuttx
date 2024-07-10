@@ -837,6 +837,7 @@ static int bl808_spi_cmddata(struct spi_dev_s *dev,
           bl808_configgpio(BL808_SPI0_MISO, GPIO_OUTPUT
                            | GPIO_PULLUP
                            | GPIO_FUNC_SWGPIO);
+
           bl808_gpiowrite(BL808_SPI0_MISO, !cmd);
         }
 #endif
@@ -847,6 +848,7 @@ static int bl808_spi_cmddata(struct spi_dev_s *dev,
           bl808_configgpio(BL808_SPI1_MISO, GPIO_OUTPUT
                            | GPIO_PULLUP
                            | GPIO_FUNC_SWGPIO);
+
           bl808_gpiowrite(BL808_SPI1_MISO, !cmd);
         }
 #endif
@@ -1169,24 +1171,28 @@ static void bl808_spi_init(struct spi_dev_s *dev)
                        | GPIO_SMT_EN
                        | GPIO_PULLUP
                        | GPIO_FUNC_SPI0);
+
       bl808_configgpio(CONFIG_BL808_SPI0_MOSI,
                        GPIO_INPUT
                        | GPIO_DRV_1
                        | GPIO_SMT_EN
                        | GPIO_PULLUP
                        | GPIO_FUNC_SPI0);
+
       bl808_configgpio(CONFIG_BL808_SPI0_SCLK,
                        GPIO_INPUT
                        | GPIO_DRV_1
                        | GPIO_SMT_EN
                        | GPIO_PULLUP
                        | GPIO_FUNC_SPI0);
+
       bl808_configgpio(CONFIG_BL808_SPI0_SS,
                        GPIO_INPUT
                        | GPIO_DRV_1
                        | GPIO_SMT_EN
                        | GPIO_PULLUP
                        | GPIO_FUNC_SPI0);
+
       modifyreg32(BL808_GLB_PARM_CFG0, 0,
                   1 << PARM_SPI_0_MASTER_MODE_SHIFT);
     }
@@ -1201,35 +1207,32 @@ static void bl808_spi_init(struct spi_dev_s *dev)
                        | GPIO_SMT_EN
                        | GPIO_PULLUP
                        | GPIO_FUNC_SPI1);
+
       bl808_configgpio(CONFIG_BL808_SPI1_MOSI,
                        GPIO_INPUT
                        | GPIO_DRV_1
                        | GPIO_SMT_EN
                        | GPIO_PULLUP
                        | GPIO_FUNC_SPI1);
+
       bl808_configgpio(CONFIG_BL808_SPI1_SCLK,
                        GPIO_INPUT
                        | GPIO_DRV_1
                        | GPIO_SMT_EN
                        | GPIO_PULLUP
                        | GPIO_FUNC_SPI1);
+
       bl808_configgpio(CONFIG_BL808_SPI1_SS,
                        GPIO_INPUT
                        | GPIO_DRV_1
                        | GPIO_SMT_EN
                        | GPIO_PULLUP
                        | GPIO_FUNC_SPI1);
+
       modifyreg32(BL808_GLB_PARM_CFG0, 0,
                   1 << PARM_MM_SPI_MASTER_MODE_SHIFT);
     }
 #endif
-
-  /* spi cfg  reg:
-   * cr_spi_deg_en 1
-   * cr_spi_m_cont_en 0
-   * cr_spi_byte_inv 0
-   * cr_spi_bit_inv 0
-   */
 
   /* Disable RX ignore */
 
