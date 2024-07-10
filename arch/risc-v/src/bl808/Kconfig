@@ -130,12 +130,27 @@ config BL808_UART3
 	select UART3_SERIALDRIVER
 	select ARCH_HAVE_SERIAL_TERMIOS
 
-config BL808_SPI0
+menuconfig BL808_SPI0
 	bool "SPI 0"
 	default n
 
-menu "SPI 0 Options"
-	depends on BL808_SPI0
+if BL808_SPI0
+
+config BL808_SPI0_DEG_ENABLE
+	bool "Deglitch enable"
+	default y
+
+config BL808_SPI0_CONT_ENABLE
+	bool "Continuous transfer mode"
+	default y
+
+config BL808_SPI0_BYTE_INV
+	bool "Invert byte transfer order"
+	default n
+
+config BL808_SPI0_BIT_INV
+	bool "Invert bit transfer order"
+	default n
 
 comment "Refer to datasheet for valid pin assignments"
 
@@ -159,14 +174,29 @@ config BL808_SPI0_SS
 	default 12
 	range 0 45
 
-endmenu
+endif
 
-config BL808_SPI1
-        bool "SPI 1"
+menuconfig BL808_SPI1
+	bool "SPI 1"
 	default n
 
-menu "SPI 1 Options"
-        depends on BL808_SPI1
+if BL808_SPI1
+
+config BL808_SPI1_DEG_ENABLE
+	bool "Deglitch enable"
+	default y
+
+config BL808_SPI1_CONT_ENABLE
+	bool "Continuous transfer mode"
+	default y
+
+config BL808_SPI1_BYTE_INV
+	bool "Invert byte transfer order"
+	default n
+
+config BL808_SPI1_BIT_INV
+	bool "Invert bit transfer order"
+	default n
 
 comment "Refer to datasheet for valid pin assignments"
 
@@ -190,6 +220,6 @@ config BL808_SPI1_SS
 	default 12
 	range 0 45
 
-endmenu
+endif
 
 endmenu

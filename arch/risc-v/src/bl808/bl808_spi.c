@@ -89,30 +89,25 @@ struct spi_clock_cfg_s
   uint8_t interval_len;    /* Length of interval between frame */
 };
 
-/* SPI configuration */
-
-struct spi_cfg_s
-{
-  uint8_t deglitch_enable;   /* Enable or disable de-glitch function */
-  uint8_t continuous_enable; /* Enable or disable master continuous transfer
-                              * mode,enable:SS will stay asserted if next data
-                              * is valid
-                              */
-  uint8_t byte_sequence;     /* The byte is sent first in SPI transfer ,0 is send
-                              * 0byte first; 1 is send 3byte first
-                              */
-  uint8_t bit_sequence;      /* The bit is sent first in SPI transfer ,0 is each byte
-                              * is sent out MSB first; 1 is each byte is sent out LSB
-                              * first
-                              */
-};
-
 /* SPI Device hardware configuration */
 
 struct bl808_spi_config_s
 {
   uint32_t clk_freq;    /* SPI clock frequency */
   enum spi_mode_e mode; /* SPI default mode */
+
+  bool deglitch_enable;   /* Enable or disable de-glitch function */
+  bool continuous_enable; /* Enable or disable master continuous transfer
+                              * mode,enable:SS will stay asserted if next data
+                              * is valid
+                              */
+  bool byte_invert;     /* The byte is sent first in SPI transfer ,0 is send
+                              * 0byte first; 1 is send 3byte first
+                              */
+  bool bit_invert;       /* The bit is sent first in SPI transfer ,0 is each byte
+                              * is sent out MSB first; 1 is each byte is sent out LSB
+                              * first
+                              */
 };
 
 struct bl808_spi_priv_s
@@ -222,7 +217,31 @@ static const struct spi_ops_s bl808_spi_ops =
 static const struct bl808_spi_config_s bl808_spi0_config =
 {
     .clk_freq = SPI_FREQ_DEFAULT,
-    .mode = SPIDEV_MODE0
+    .mode = SPIDEV_MODE0,
+
+#ifdef CONFIG_BL808_SPI0_DEG_ENABLE
+    .deglitch_enable = 1,
+#else
+    .deglitch_enable = 0,
+#endif
+    
+#ifdef CONFIG_BL808_SPI0_CONT_ENABLE
+    .continuous_enable = 1,
+#else
+    .continuous_enable = 0,
+#endif
+
+#ifdef CONFIG_BL808_SPI0_BYTE_INV
+    .byte_invert = 1,
+#else
+    .byte_invert = 0,
+#endif
+
+#ifdef CONFIG_BL808_SPI0_BIT_INV
+    .bit_invert = 1,
+#else
+    .bit_invert = 0,
+#endif
 };
 
 static struct bl808_spi_priv_s bl808_spi0_priv =
@@ -242,7 +261,31 @@ static struct bl808_spi_priv_s bl808_spi0_priv =
 static const struct bl808_spi_config_s bl808_spi1_config =
 {
     .clk_freq = SPI_FREQ_DEFAULT,
-    .mode = SPIDEV_MODE0
+    .mode = SPIDEV_MODE0,
+
+#ifdef CONFIG_BL808_SPI1_DEG_ENABLE
+    .deglitch_enable = 1,
+#else
+    .deglitch_enable = 0,
+#endif
+    
+#ifdef CONFIG_BL808_SPI1_CONT_ENABLE
+    .continuous_enable = 1,
+#else
+    .continuous_enable = 0,
+#endif
+
+#ifdef CONFIG_BL808_SPI1_BYTE_INV
+    .byte_invert = 1,
+#else
+    .byte_invert = 0,
+#endif
+
+#ifdef CONFIG_BL808_SPI1_BIT_INV
+    .bit_invert = 1,
+#else
+    .bit_invert = 0,
+#endif
 };
 
 static struct bl808_spi_priv_s bl808_spi1_priv =
@@ -701,6 +744,16 @@ static void bl808_spi_setbits(struct spi_dev_s *dev, int nbits)
         modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_FRAME_SIZE_MASK,
                     1 << SPI_CFG_CR_FRAME_SIZE_SHIFT);
         break;
+
+      case 24:
+	modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_FRAME_SIZE_MASK,
+                    2 << SPI_CFG_CR_FRAME_SIZE_SHIFT);
+	break;
+
+      case 32:
+	modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_FRAME_SIZE_MASK,
+                    3 << SPI_CFG_CR_FRAME_SIZE_SHIFT);
+	break;
 
       default:
         return;
@@ -1179,15 +1232,53 @@ static void bl808_spi_init(struct spi_dev_s *dev)
    * cr_spi_bit_inv 0
    */
 
-  modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_M_CONT_EN
-              | SPI_CFG_CR_BYTE_INV | SPI_CFG_CR_BIT_INV,
-              SPI_CFG_CR_DEG_EN);
+  /* Disable RX ignore */
 
-  /* Disable rx ignore.
-   * Enable continuous mode.
-   */
+  modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_RXD_IGNR_EN, 0);
 
-  modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_RXD_IGNR_EN, SPI_CFG_CR_M_CONT_EN);
+  /* Set deglitch */
+
+  if (config->deglitch_enable)
+    {
+      modifyreg32(BL808_SPI_CFG(idx), 0, SPI_CFG_CR_DEG_EN);
+    }
+  else
+    {
+      modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_DEG_EN, 0);
+    }
+
+  /* Set continuous transfer */
+
+  if (config->continuous_enable)
+    {
+      modifyreg32(BL808_SPI_CFG(idx), 0, SPI_CFG_CR_M_CONT_EN);
+    }
+  else
+    {
+      modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_M_CONT_EN, 0);
+    }
+
+  /* Set byte inversion */
+
+  if (config->byte_invert)
+    {
+      modifyreg32(BL808_SPI_CFG(idx), 0, SPI_CFG_CR_SPI_BYTE_INV);
+    }
+  else
+    {
+      modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_SPI_BYTE_INV, 0);
+    }
+
+  /* Set bit inversion */
+
+  if (config->bit_invert)
+    {
+      modifyreg32(BL808_SPI_CFG(idx), 0, SPI_CFG_CR_SPI_BIT_INV);
+    }
+  else
+    {
+      modifyreg32(BL808_SPI_CFG(idx), SPI_CFG_CR_SPI_BIT_INV, 0);
+    }
 
   bl808_spi_setfrequency(dev, config->clk_freq);
   bl808_spi_setbits(dev, 8);
